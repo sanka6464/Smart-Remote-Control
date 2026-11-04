@@ -9,7 +9,7 @@
 body {
   background:#101827;
   color:white;
-  font-family:Arial;
+  font-family:Arial,sans-serif;
   padding:20px;
 }
 .container {
@@ -48,6 +48,17 @@ button {
   margin-top:12px;
   font-size:16px;
 }
+input {
+  box-sizing:border-box;
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border-radius:8px;
+}
+.note {
+  color:#94a3b8;
+  font-size:13px;
+}
 </style>
 </head>
 
@@ -58,11 +69,13 @@ button {
 
 <div class="card">
 <h2>Device Connection</h2>
-<p id="status">Disconnected</p>
+<p id="status">Connecting to Firebase...</p>
+
 <input id="pin" type="password"
-placeholder="Enter PIN"
-style="padding:12px;width:90%">
-<button onclick="connect()">Connect</button>
+placeholder="Enter PIN" autocomplete="off">
+
+<button id="connectBtn">Connect</button>
+<button id="disconnectBtn">Disconnect</button>
 </div>
 
 <div class="card">
@@ -92,11 +105,12 @@ style="padding:12px;width:90%">
 <span>📱 Screen Sharing</span>
 <span class="dot" id="screen"></span>
 </div>
-</div>
 
-<button onclick="disconnect()">
-Disconnect
-</button>
+<p class="note">
+These features require device-owner permission
+and are not active yet.
+</p>
+</div>
 
 <p style="text-align:center;color:#94a3b8">
 Smart Remote Control © 2026
@@ -104,23 +118,47 @@ Smart Remote Control © 2026
 
 </div>
 
-<script>
-function connect() {
-  const pin = document.getElementById("pin").value;
+<script type="module">
 
-  if(pin.length < 4) {
-    alert("Enter a valid PIN");
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
+
+import { getDatabase }
+from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC3cV-srYW3K6hzWPEQID_GnWlntIcpnE",
+  authDomain: "smart-remote-control-589a1.firebaseapp.com",
+  databaseURL: "https://smart-remote-control-589a1-default-rtdb.asia-southeast1.firebasedatabase.app/",
+  projectId: "smart-remote-control-589a1",
+  storageBucket: "smart-remote-control-589a1.firebasestorage.app",
+  messagingSenderId: "627989413574",
+  appId: "1:627989413574:web:d93b68e22bcdb6f05061c7"
+};
+
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
+
+document.getElementById("status").innerText =
+"Firebase initialized";
+
+document.getElementById("connectBtn").addEventListener("click", () => {
+  const pin = document.getElementById("pin").value.trim();
+
+  if (pin.length < 4) {
+    alert("Please enter at least 4 characters.");
     return;
   }
 
   document.getElementById("status").innerText =
   "Waiting for device owner approval";
-}
+});
 
-function disconnect() {
-  document.getElementById("status").innerText =
-  "Disconnected";
-}
+document.getElementById("disconnectBtn").addEventListener("click", () => {
+  document.getElementById("status").innerText = "Disconnected";
+  document.getElementById("pin").value = "";
+});
+
 </script>
 
 </body>
