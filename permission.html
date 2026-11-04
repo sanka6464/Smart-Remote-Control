@@ -1,0 +1,81 @@
+<!DOCTYPE html><html lang="si">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Device Permission</title><style>
+body {
+  background: #101827;
+  color: white;
+  font-family: Arial, sans-serif;
+  padding: 20px;
+}
+.container {
+  max-width: 450px;
+  margin: auto;
+}
+h1 {
+  color: #35b8ff;
+  text-align: center;
+}
+.card {
+  background: #1e293b;
+  padding: 20px;
+  border-radius: 15px;
+  margin-top: 20px;
+}
+button {
+  width: 100%;
+  padding: 14px;
+  border: 0;
+  border-radius: 9px;
+  margin-top: 12px;
+  color: white;
+  font-size: 16px;
+}
+.approve { background: #16a34a; }
+.reject { background: #dc2626; }
+.revoke { background: #64748b; }
+.status {
+  color: #facc15;
+  text-align: center;
+  margin-top: 18px;
+}
+.note {
+  color: #94a3b8;
+  font-size: 13px;
+}
+</style></head><body>
+<div class="container"><h1>Device Permission</h1><div class="card">
+<h2>Connection Request</h2><p>Device: Waiting for request</p><p>Requested permissions:</p><ul>
+<li>Camera</li>
+<li>Microphone</li>
+<li>Gallery</li>
+<li>Screen Sharing</li>
+</ul><p class="note">
+No device access is enabled by this demonstration page.
+Actual access requires separate, explicit permission on the device.
+</p><button class="approve" id="approveBtn">
+Approve Request
+</button><button class="reject" id="rejectBtn">
+Reject Request
+</button><button class="revoke" id="revokeBtn">
+Revoke Permission
+</button><p class="status" id="status">
+Waiting for device-owner action
+</p>
+</div></div><script>
+const status = document.getElementById("status");
+
+document.getElementById("approveBtn").addEventListener("click", () => {
+  status.innerText = "Demo: Request approved";
+});
+
+document.getElementById("rejectBtn").addEventListener("click", () => {
+  status.innerText = "Demo: Request rejected";
+});
+
+document.getElementById("revokeBtn").addEventListener("click", () => {
+  status.innerText = "Demo: Permission revoked";
+});
+</script></body>
+</html>
