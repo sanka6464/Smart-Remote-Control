@@ -68,7 +68,23 @@ input {
 <h1>Smart Remote Control</h1>
 
 <div class="card">
+<h2>User Login</h2>
+
+<input id="email" type="email"
+placeholder="Enter Email">
+
+<input id="password" type="password"
+placeholder="Enter Password">
+
+<button id="loginBtn">Login</button>
+<button id="logoutBtn">Logout</button>
+
+<p id="authStatus">Checking account...</p>
+</div>
+
+<div class="card">
 <h2>Device Connection</h2>
+
 <p id="status">Connecting to Firebase...</p>
 
 <input id="pin" type="password"
@@ -107,8 +123,8 @@ placeholder="Enter PIN" autocomplete="off">
 </div>
 
 <p class="note">
-These features require device-owner permission
-and are not active yet.
+All device features require explicit device-owner
+permission. They are not active yet.
 </p>
 </div>
 
@@ -126,6 +142,14 @@ from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
 import { getDatabase }
 from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
 
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+}
+from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyC3cV-srYW3K6hzWPEQID_GnWlntIcpnE",
   authDomain: "smart-remote-control-589a1.firebaseapp.com",
@@ -138,25 +162,112 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
+const auth = getAuth(app);
 
+let currentUser = null;
+
+// Firebase connection
 document.getElementById("status").innerText =
 "Firebase initialized";
 
-document.getElementById("connectBtn").addEventListener("click", () => {
-  const pin = document.getElementById("pin").value.trim();
+// Login
+document.getElementById("loginBtn").addEventListener("click", async () => {
 
-  if (pin.length < 4) {
-    alert("Please enter at least 4 characters.");
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+
+  if (!email || !password) {
+    alert("Please enter email and password.");
     return;
   }
 
-  document.getElementById("status").innerText =
-  "Waiting for device owner approval";
+  try {
+
+    await signInWithEmailAndPassword(auth, email, password);
+
+    document.getElementById("authStatus").innerText =
+    "Login successful";
+
+  } catch (error) {
+
+    alert("Login failed: " + error.message);
+
+  }
+
 });
 
+// Logout
+document.getElementById("logoutBtn").addEventListener("click", async () => {
+
+  try {
+
+    await signOut(auth);
+
+    document.getElementById("status").innerText =
+    "Disconnected";
+
+  } catch (error) {
+
+    alert(error.message);
+
+  }
+
+});
+
+// Check login status
+onAuthStateChanged(auth, (user) => {
+
+  currentUser = user;
+
+  if (user) {
+
+    document.getElementById("authStatus").innerText =
+    "Logged in: " + user.email;
+
+  } else {
+
+    document.getElementById("authStatus").innerText =
+    "Not logged in";
+
+    document.getElementById("status").innerText =
+    "Please login first";
+
+  }
+
+});
+
+// Connect
+document.getElementById("connectBtn").addEventListener("click", () => {
+
+  if (!currentUser) {
+
+    alert("Please login first.");
+    return;
+
+  }
+
+  const pin = document.getElementById("pin").value.trim();
+
+  if (pin.length < 4) {
+
+    alert("Please enter at least 4 characters.");
+    return;
+
+  }
+
+  document.getElementById("status").innerText =
+  "Login verified. Device-owner approval system is not yet connected.";
+
+});
+
+// Disconnect
 document.getElementById("disconnectBtn").addEventListener("click", () => {
-  document.getElementById("status").innerText = "Disconnected";
+
+  document.getElementById("status").innerText =
+  "Disconnected";
+
   document.getElementById("pin").value = "";
+
 });
 
 </script>
