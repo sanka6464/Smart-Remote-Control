@@ -17,43 +17,33 @@ body {
   margin:auto;
 }
 h1 {
-  text-align:center;
   color:#35b8ff;
+  text-align:center;
 }
 .card {
   background:#1e293b;
   padding:20px;
   border-radius:15px;
-  margin:18px 0;
+  margin-top:20px;
 }
-.feature {
-  display:flex;
-  justify-content:space-between;
-  padding:16px 5px;
-  border-bottom:1px solid #334155;
-}
-.dot {
-  width:13px;
-  height:13px;
-  background:#64748b;
-  border-radius:50%;
-}
-button {
-  width:100%;
-  padding:14px;
-  background:#1689ff;
-  color:white;
-  border:0;
-  border-radius:9px;
-  margin-top:12px;
-  font-size:16px;
-}
-input {
+input,button {
   box-sizing:border-box;
   width:100%;
-  padding:12px;
-  margin-top:10px;
-  border-radius:8px;
+  padding:14px;
+  margin-top:12px;
+  border-radius:9px;
+  font-size:16px;
+}
+input { border:0; }
+button {
+  border:0;
+  background:#1689ff;
+  color:white;
+}
+.status {
+  color:#facc15;
+  text-align:center;
+  overflow-wrap:anywhere;
 }
 .note {
   color:#94a3b8;
@@ -70,67 +60,31 @@ input {
 <div class="card">
 <h2>User Login</h2>
 
-<input id="email" type="email"
-placeholder="Enter Email">
-
-<input id="password" type="password"
-placeholder="Enter Password">
+<input id="email" type="email" placeholder="Enter Email">
+<input id="password" type="password" placeholder="Enter Password">
 
 <button id="loginBtn">Login</button>
 <button id="logoutBtn">Logout</button>
 
-<p id="authStatus">Checking account...</p>
+<p id="authStatus" class="status">Checking account...</p>
 </div>
 
 <div class="card">
-<h2>Device Connection</h2>
+<h2>Connection Request</h2>
 
-<p id="status">Connecting to Firebase...</p>
+<input id="ownerId" type="text"
+placeholder="Enter Device Owner ID">
 
-<input id="pin" type="password"
-placeholder="Enter PIN" autocomplete="off">
-
-<button id="connectBtn">Connect</button>
+<button id="requestBtn">Send Connection Request</button>
 <button id="disconnectBtn">Disconnect</button>
-</div>
 
-<div class="card">
-<h2>Device Features</h2>
-
-<div class="feature">
-<span>🤳 Front Camera</span>
-<span class="dot" id="front"></span>
-</div>
-
-<div class="feature">
-<span>📷 Back Camera</span>
-<span class="dot" id="back"></span>
-</div>
-
-<div class="feature">
-<span>🎤 Microphone</span>
-<span class="dot" id="mic"></span>
-</div>
-
-<div class="feature">
-<span>🖼️ Gallery</span>
-<span class="dot" id="gallery"></span>
-</div>
-
-<div class="feature">
-<span>📱 Screen Sharing</span>
-<span class="dot" id="screen"></span>
-</div>
+<p id="status" class="status">Please login first</p>
 
 <p class="note">
-All device features require explicit device-owner
-permission. They are not active yet.
+The device owner must approve the request.
+No device features are activated automatically.
 </p>
 </div>
-
-<p style="text-align:center;color:#94a3b8">
-Smart Remote Control © 2026
-</p>
 
 </div>
 
@@ -139,137 +93,120 @@ Smart Remote Control © 2026
 import { initializeApp }
 from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
 
-import { getDatabase }
+import {
+getDatabase,
+ref,
+push,
+set
+}
 from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
 
 import {
-  getAuth,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged
+getAuth,
+signInWithEmailAndPassword,
+signOut,
+onAuthStateChanged
 }
 from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyC3cV-srYW3K6hzWPEQID_GNwMlntIcpnE",
-  authDomain: "smart-remote-control-589a1.firebaseapp.com",
-  databaseURL: "https://smart-remote-control-589a1-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "smart-remote-control-589a1",
-  storageBucket: "smart-remote-control-589a1.firebasestorage.app",
-  messagingSenderId: "627989413574",
-  appId: "1:627989413574:web:d93b68e22bcdb6f05061c7"
+apiKey: "AIzaSyC3cV-srYW3K6hzWPEQID_GNwMlntIcpnE",
+authDomain: "smart-remote-control-589a1.firebaseapp.com",
+databaseURL: "https://smart-remote-control-589a1-default-rtdb.asia-southeast1.firebasedatabase.app",
+projectId: "smart-remote-control-589a1",
+storageBucket: "smart-remote-control-589a1.firebasestorage.app",
+messagingSenderId: "627989413574",
+appId: "1:627989413574:web:d93b68e22bcdb6f05061c7"
 };
+
 const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
 const auth = getAuth(app);
+const database = getDatabase(app);
 
 let currentUser = null;
 
-// Firebase connection
-document.getElementById("status").innerText =
-"Firebase initialized";
+const status = document.getElementById("status");
+const authStatus = document.getElementById("authStatus");
 
-// Login
-document.getElementById("loginBtn").addEventListener("click", async () => {
+document.getElementById("loginBtn").onclick = async () => {
 
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value;
 
   if (!email || !password) {
-    alert("Please enter email and password.");
+    alert("Enter email and password");
     return;
   }
 
   try {
-
-    await signInWithEmailAndPassword(auth, email, password);
-
-    document.getElementById("authStatus").innerText =
-    "Login successful";
-
-  } catch (error) {
-
-    alert("Login failed: " + error.message);
-
+    await signInWithEmailAndPassword(auth,email,password);
+    authStatus.innerText = "Login successful";
+  } catch(error) {
+    authStatus.innerText = "Login failed: " + error.message;
   }
+};
 
-});
+document.getElementById("logoutBtn").onclick = async () => {
+  await signOut(auth);
+};
 
-// Logout
-document.getElementById("logoutBtn").addEventListener("click", async () => {
-
-  try {
-
-    await signOut(auth);
-
-    document.getElementById("status").innerText =
-    "Disconnected";
-
-  } catch (error) {
-
-    alert(error.message);
-
-  }
-
-});
-
-// Check login status
 onAuthStateChanged(auth, (user) => {
 
   currentUser = user;
 
   if (user) {
-
-    document.getElementById("authStatus").innerText =
-    "Logged in: " + user.email;
-
+    authStatus.innerText = "Logged in: " + user.email;
   } else {
-
-    document.getElementById("authStatus").innerText =
-    "Not logged in";
-
-    document.getElementById("status").innerText =
-    "Please login first";
-
+    authStatus.innerText = "Please login";
+    status.innerText = "Please login first";
   }
-
 });
 
-// Connect
-document.getElementById("connectBtn").addEventListener("click", () => {
+document.getElementById("requestBtn").onclick = async () => {
 
   if (!currentUser) {
-
-    alert("Please login first.");
+    alert("Please login first");
     return;
-
   }
 
-  const pin = document.getElementById("pin").value.trim();
+  const ownerUid = document.getElementById("ownerId").value.trim();
 
-  if (pin.length < 4) {
-
-    alert("Please enter at least 4 characters.");
+  if (!ownerUid) {
+    alert("Please enter Owner ID");
     return;
-
   }
 
-  document.getElementById("status").innerText =
-  "Login verified. Device-owner approval system is not yet connected.";
+  if (ownerUid.length > 128) {
+    alert("Invalid Owner ID");
+    return;
+  }
 
-});
+  try {
 
-// Disconnect
-document.getElementById("disconnectBtn").addEventListener("click", () => {
+    const requestsRef = ref(database, "requests/" + ownerUid);
+    const newRequest = push(requestsRef);
 
-  document.getElementById("status").innerText =
-  "Disconnected";
+    await set(newRequest, {
+      requesterUid: currentUser.uid,
+      ownerUid: ownerUid,
+      createdAt: Date.now(),
+      status: "pending"
+    });
 
-  document.getElementById("pin").value = "";
+    status.innerText = "Connection request sent. Waiting for owner approval.";
 
-});
+  } catch(error) {
+
+    status.innerText = "Request failed: " + error.message;
+
+  }
+};
+
+document.getElementById("disconnectBtn").onclick = () => {
+  status.innerText = "Disconnected";
+  document.getElementById("ownerId").value = "";
+};
 
 </script>
-
 </body>
 </html>
