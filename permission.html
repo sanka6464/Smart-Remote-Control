@@ -1,81 +1,159 @@
-<!DOCTYPE html><html lang="si">
+<!DOCTYPE html>
+<html lang="si">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Device Permission</title><style>
+<title>Permission App</title>
+
+<style>
 body {
-  background: #101827;
-  color: white;
-  font-family: Arial, sans-serif;
-  padding: 20px;
+  background:#101827;
+  color:white;
+  font-family:Arial,sans-serif;
+  padding:20px;
 }
 .container {
-  max-width: 450px;
-  margin: auto;
+  max-width:450px;
+  margin:auto;
 }
 h1 {
-  color: #35b8ff;
-  text-align: center;
+  color:#35b8ff;
+  text-align:center;
 }
 .card {
-  background: #1e293b;
-  padding: 20px;
-  border-radius: 15px;
-  margin-top: 20px;
+  background:#1e293b;
+  padding:20px;
+  border-radius:15px;
+  margin-top:20px;
+}
+input,button {
+  box-sizing:border-box;
+  width:100%;
+  padding:14px;
+  margin-top:12px;
+  border-radius:9px;
+  font-size:16px;
+}
+input {
+  border:0;
 }
 button {
-  width: 100%;
-  padding: 14px;
-  border: 0;
-  border-radius: 9px;
-  margin-top: 12px;
-  color: white;
-  font-size: 16px;
+  border:0;
+  background:#1689ff;
+  color:white;
 }
-.approve { background: #16a34a; }
-.reject { background: #dc2626; }
-.revoke { background: #64748b; }
 .status {
-  color: #facc15;
-  text-align: center;
-  margin-top: 18px;
+  color:#facc15;
+  text-align:center;
 }
-.note {
-  color: #94a3b8;
-  font-size: 13px;
-}
-</style></head><body>
-<div class="container"><h1>Device Permission</h1><div class="card">
-<h2>Connection Request</h2><p>Device: Waiting for request</p><p>Requested permissions:</p><ul>
-<li>Camera</li>
-<li>Microphone</li>
-<li>Gallery</li>
-<li>Screen Sharing</li>
-</ul><p class="note">
-No device access is enabled by this demonstration page.
-Actual access requires separate, explicit permission on the device.
-</p><button class="approve" id="approveBtn">
-Approve Request
-</button><button class="reject" id="rejectBtn">
-Reject Request
-</button><button class="revoke" id="revokeBtn">
-Revoke Permission
-</button><p class="status" id="status">
-Waiting for device-owner action
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Device Permission</h1>
+
+<div class="card">
+
+<h2>Owner Login</h2>
+
+<input id="email" type="email"
+placeholder="Enter Email">
+
+<input id="password" type="password"
+placeholder="Enter Password">
+
+<button id="loginBtn">Login</button>
+
+<button id="logoutBtn">Logout</button>
+
+<p id="status" class="status">
+Please login
 </p>
-</div></div><script>
+
+</div>
+
+</div>
+
+<script type="module">
+
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
+
+import {
+getAuth,
+signInWithEmailAndPassword,
+signOut,
+onAuthStateChanged
+}
+from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+
+const firebaseConfig = {
+apiKey: "AIzaSyC3cV-srYW3K6hzWPEQID_GNwMlntIcpnE",
+authDomain: "smart-remote-control-589a1.firebaseapp.com",
+databaseURL: "https://smart-remote-control-589a1-default-rtdb.asia-southeast1.firebasedatabase.app",
+projectId: "smart-remote-control-589a1",
+storageBucket: "smart-remote-control-589a1.firebasestorage.app",
+messagingSenderId: "627989413574",
+appId: "1:627989413574:web:d93b68e22bcdb6f05061c7"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
 const status = document.getElementById("status");
 
-document.getElementById("approveBtn").addEventListener("click", () => {
-  status.innerText = "Demo: Request approved";
+document.getElementById("loginBtn")
+.addEventListener("click", async () => {
+
+const email = document.getElementById("email").value.trim();
+const password = document.getElementById("password").value;
+
+if (!email || !password) {
+alert("Enter email and password");
+return;
+}
+
+try {
+
+await signInWithEmailAndPassword(auth,email,password);
+
+status.innerText = "Login successful";
+
+} catch(error) {
+
+status.innerText = "Login failed: " + error.message;
+
+}
+
 });
 
-document.getElementById("rejectBtn").addEventListener("click", () => {
-  status.innerText = "Demo: Request rejected";
+document.getElementById("logoutBtn")
+.addEventListener("click", async () => {
+
+await signOut(auth);
+
+status.innerText = "Logged out";
+
 });
 
-document.getElementById("revokeBtn").addEventListener("click", () => {
-  status.innerText = "Demo: Permission revoked";
+onAuthStateChanged(auth, (user) => {
+
+if (user) {
+
+status.innerText = "Owner logged in: " + user.email;
+
+} else {
+
+status.innerText = "Please login";
+
+}
+
 });
-</script></body>
+
+</script>
+
+</body>
 </html>
