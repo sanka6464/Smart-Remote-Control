@@ -2,67 +2,126 @@
 <html lang="si">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Smart Remote Control</title>
+
 <style>
 body {
-    font-family: Arial, sans-serif;
-    background: #101827;
-    color: white;
-    text-align: center;
-    padding: 25px;
+  background:#101827;
+  color:white;
+  font-family:Arial;
+  padding:20px;
 }
 .container {
-    max-width: 400px;
-    margin: auto;
+  max-width:450px;
+  margin:auto;
 }
 h1 {
-    color: #35b8ff;
+  text-align:center;
+  color:#35b8ff;
 }
 .card {
-    background: #1e293b;
-    padding: 25px;
-    border-radius: 15px;
-    margin-top: 25px;
+  background:#1e293b;
+  padding:20px;
+  border-radius:15px;
+  margin:18px 0;
 }
-input {
-    padding: 12px;
-    width: 80%;
-    border-radius: 8px;
-    border: none;
+.feature {
+  display:flex;
+  justify-content:space-between;
+  padding:16px 5px;
+  border-bottom:1px solid #334155;
+}
+.dot {
+  width:13px;
+  height:13px;
+  background:#64748b;
+  border-radius:50%;
 }
 button {
-    background: #1689ff;
-    color: white;
-    padding: 13px 25px;
-    border: none;
-    border-radius: 8px;
-    margin-top: 15px;
-    font-size: 16px;
+  width:100%;
+  padding:14px;
+  background:#1689ff;
+  color:white;
+  border:0;
+  border-radius:9px;
+  margin-top:12px;
+  font-size:16px;
 }
 </style>
 </head>
+
 <body>
 <div class="container">
+
 <h1>Smart Remote Control</h1>
-<p>Welcome to Smart Remote Control</p>
 
 <div class="card">
-<h2>Connect Device</h2>
-<p>Enter Connection PIN</p>
-<input type="number" placeholder="Enter PIN">
-<br>
+<h2>Device Connection</h2>
+<p id="status">Disconnected</p>
+<input id="pin" type="password"
+placeholder="Enter PIN"
+style="padding:12px;width:90%">
 <button onclick="connect()">Connect</button>
-<p id="status"></p>
 </div>
+
+<div class="card">
+<h2>Device Features</h2>
+
+<div class="feature">
+<span>🤳 Front Camera</span>
+<span class="dot" id="front"></span>
+</div>
+
+<div class="feature">
+<span>📷 Back Camera</span>
+<span class="dot" id="back"></span>
+</div>
+
+<div class="feature">
+<span>🎤 Microphone</span>
+<span class="dot" id="mic"></span>
+</div>
+
+<div class="feature">
+<span>🖼️ Gallery</span>
+<span class="dot" id="gallery"></span>
+</div>
+
+<div class="feature">
+<span>📱 Screen Sharing</span>
+<span class="dot" id="screen"></span>
+</div>
+</div>
+
+<button onclick="disconnect()">
+Disconnect
+</button>
+
+<p style="text-align:center;color:#94a3b8">
+Smart Remote Control © 2026
+</p>
 
 </div>
 
 <script>
 function connect() {
-    document.getElementById("status").innerText =
-    "Connection feature coming soon!";
+  const pin = document.getElementById("pin").value;
+
+  if(pin.length < 4) {
+    alert("Enter a valid PIN");
+    return;
+  }
+
+  document.getElementById("status").innerText =
+  "Waiting for device owner approval";
+}
+
+function disconnect() {
+  document.getElementById("status").innerText =
+  "Disconnected";
 }
 </script>
+
 </body>
 </html>
