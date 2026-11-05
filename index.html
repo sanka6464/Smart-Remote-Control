@@ -40,9 +40,19 @@ button {
   background:#1689ff;
   color:white;
 }
+.reject {
+  background:#dc3545;
+}
 .status {
   color:#facc15;
   text-align:center;
+  overflow-wrap:anywhere;
+}
+.request {
+  background:#334155;
+  padding:12px;
+  margin-top:12px;
+  border-radius:10px;
   overflow-wrap:anywhere;
 }
 .note {
@@ -72,8 +82,7 @@ button {
 <div class="card">
 <h2>Connection Request</h2>
 
-<input id="ownerId" type="text"
-placeholder="Enter Device Owner ID">
+<input id="ownerId" placeholder="Enter Device Owner UID">
 
 <button id="requestBtn">Send Connection Request</button>
 <button id="disconnectBtn">Disconnect</button>
@@ -81,9 +90,21 @@ placeholder="Enter Device Owner ID">
 <p id="status" class="status">Please login first</p>
 
 <p class="note">
-The device owner must approve the request.
-No device features are activated automatically.
+Connection requires explicit device owner approval.
 </p>
+</div>
+
+<div class="card">
+<h2>Device Owner Panel</h2>
+
+<p class="note">
+Connection requests sent to your account will appear here.
+</p>
+
+<div id="requestList">
+<p class="status">Waiting for requests...</p>
+</div>
+
 </div>
 
 </div>
@@ -97,7 +118,9 @@ import {
 getDatabase,
 ref,
 push,
-set
+set,
+onValue,
+update
 }
 from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
 
@@ -124,9 +147,12 @@ const auth = getAuth(app);
 const database = getDatabase(app);
 
 let currentUser = null;
+let stopOwnerListener = null;
+let stopRequestListener = null;
 
 const status = document.getElementById("status");
 const authStatus = document.getElementById("authStatus");
+const requestList = document.getElementById("requestList");
 
 document.getElementById("loginBtn").onclick = async () => {
 
@@ -154,11 +180,90 @@ onAuthStateChanged(auth, (user) => {
 
   currentUser = user;
 
+  if (stopOwnerListener) {
+    stopOwnerListener();
+    stopOwnerListener = null;
+  }
+
+  if (stopRequestListener) {
+    stopRequestListener();
+    stopRequestListener = null;
+  }
+
   if (user) {
+
     authStatus.innerText = "Logged in: " + user.email;
+
+    const ownerRef = ref(database, "requests/" + user.uid);
+
+    stopOwnerListener = onValue(ownerRef, (snapshot) => {
+
+      requestList.replaceChildren();
+
+      if (!snapshot.exists()) {
+        requestList.innerText = "No connection requests yet.";
+        return;
+      }
+
+      snapshot.forEach((item) => {
+
+        const data = item.val();
+
+        const box = document.createElement("div");
+        box.className = "request";
+
+        const info = document.createElement("p");
+        info.textContent = "Requester UID: " + data.requesterUid;
+
+        const state = document.createElement("p");
+        state.textContent = "Status: " + data.status;
+
+        box.append(info, state);
+
+        if (data.status === "pending") {
+
+          const accept = document.createElement("button");
+          accept.textContent = "Accept Request";
+
+          accept.onclick = async () => {
+            try {
+              await update(ref(database,
+                "requests/" + user.uid + "/" + item.key),
+                {status: "approved"}
+              );
+            } catch(error) {
+              alert("Approval failed: " + error.message);
+            }
+          };
+
+          const reject = document.createElement("button");
+          reject.textContent = "Reject Request";
+          reject.className = "reject";
+
+          reject.onclick = async () => {
+            try {
+              await update(ref(database,
+                "requests/" + user.uid + "/" + item.key),
+                {status: "rejected"}
+              );
+            } catch(error) {
+              alert("Rejection failed: " + error.message);
+            }
+          };
+
+          box.append(accept, reject);
+        }
+
+        requestList.appendChild(box);
+      });
+    });
+
   } else {
+
     authStatus.innerText = "Please login";
     status.innerText = "Please login first";
+    requestList.innerText = "Please login to view requests.";
+
   }
 });
 
@@ -176,7 +281,7 @@ document.getElementById("requestBtn").onclick = async () => {
     return;
   }
 
-  if (ownerUid.length > 128) {
+  if (ownerUid.length > 128 || ownerUid === currentUser.uid) {
     alert("Invalid Owner ID");
     return;
   }
@@ -193,7 +298,18 @@ document.getElementById("requestBtn").onclick = async () => {
       status: "pending"
     });
 
-    status.innerText = "Connection request sent. Waiting for owner approval.";
+    status.innerText = "Request sent. Waiting for owner approval.";
+
+    if (stopRequestListener) stopRequestListener();
+
+    stopRequestListener = onValue(newRequest, (snapshot) => {
+
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        status.innerText = "Connection status: " + data.status;
+      }
+
+    });
 
   } catch(error) {
 
@@ -203,8 +319,15 @@ document.getElementById("requestBtn").onclick = async () => {
 };
 
 document.getElementById("disconnectBtn").onclick = () => {
+
+  if (stopRequestListener) {
+    stopRequestListener();
+    stopRequestListener = null;
+  }
+
   status.innerText = "Disconnected";
   document.getElementById("ownerId").value = "";
+
 };
 
 </script>
