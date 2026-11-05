@@ -3,9 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
 <title>Smart Remote Control</title>
 
 <style>
+
 body {
   background:#101827;
   color:white;
@@ -50,9 +52,9 @@ button {
   font-weight:bold;
 }
 
-.green { background:#159957; }
-.red { background:#dc3545; }
-.gray { background:#64748b; }
+.green {background:#159957;}
+.red {background:#dc3545;}
+.gray {background:#64748b;}
 
 .status {
   color:#35b8ff;
@@ -67,7 +69,7 @@ button {
 }
 
 .count {
-  font-size:28px;
+  font-size:32px;
   color:#35b8ff;
   text-align:center;
   font-weight:bold;
@@ -80,6 +82,34 @@ button {
   border-radius:8px;
   overflow-wrap:anywhere;
 }
+
+.dot {
+  display:inline-block;
+  width:11px;
+  height:11px;
+  border-radius:50%;
+  margin-right:8px;
+}
+
+.dotGreen {
+  background:#22c55e;
+  box-shadow:0 0 8px #22c55e;
+}
+
+.dotYellow {
+  background:#facc15;
+  box-shadow:0 0 8px #facc15;
+}
+
+.dotRed {
+  background:#ef4444;
+  box-shadow:0 0 8px #ef4444;
+}
+
+.dotGray {
+  background:#64748b;
+}
+
 </style>
 </head>
 
@@ -89,14 +119,18 @@ button {
 
 <h2>Smart Remote Control</h2>
 
+<!-- LOGIN -->
+
 <div class="card" id="loginBox">
 
 <h3>User Login</h3>
 
-<input id="email" type="email"
+<input id="email"
+type="email"
 placeholder="Email Address">
 
-<input id="password" type="password"
+<input id="password"
+type="password"
 placeholder="Password">
 
 <button id="loginBtn">Login</button>
@@ -109,7 +143,13 @@ Create Account
 
 </div>
 
+
+<!-- DASHBOARD -->
+
 <div id="dashboard" style="display:none">
+
+
+<!-- ACCOUNT -->
 
 <div class="card">
 
@@ -129,12 +169,15 @@ Logout
 
 </div>
 
+
+<!-- APPROVED DEVICES -->
+
 <div class="card">
 
-<h3>Approved Permissions Dashboard</h3>
+<h3>Connected Devices Dashboard</h3>
 
 <p class="small">
-Number of approved users:
+Approved Users:
 </p>
 
 <p id="approvedCount" class="count">0</p>
@@ -144,16 +187,32 @@ No approved permissions yet.
 </div>
 
 <p class="small">
-This dashboard displays permission status only.
+🟢 Green = Approved permission
+</p>
+
+<p class="small">
+🟡 Yellow = Pending request
+</p>
+
+<p class="small">
+🔴 Red = Revoked or rejected
+</p>
+
+<p class="small">
+Approval status does not mean the device is currently online.
 </p>
 
 </div>
+
+
+<!-- SEND REQUEST -->
 
 <div class="card">
 
 <h3>Send Connection Request</h3>
 
-<input id="ownerUid"
+<input
+id="ownerUid"
 placeholder="Enter Device Owner UID">
 
 <button id="sendRequestBtn">
@@ -163,6 +222,9 @@ Send Connection Request
 <p id="requestStatus" class="status"></p>
 
 </div>
+
+
+<!-- INCOMING REQUESTS -->
 
 <div class="card">
 
@@ -174,9 +236,10 @@ Waiting for requests...
 
 </div>
 
-</div>
 
 </div>
+</div>
+
 
 <script type="module">
 
@@ -197,29 +260,41 @@ getDatabase,
 ref,
 push,
 set,
-get,
 onValue,
 update
 } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
 
 
 const firebaseConfig = {
+
 apiKey: "AIzaSyC3cV-srYW3K6hzWPEQID_GNwMlntIcpnE",
+
 authDomain: "smart-remote-control-589a1.firebaseapp.com",
+
 databaseURL: "https://smart-remote-control-589a1-default-rtdb.asia-southeast1.firebasedatabase.app",
+
 projectId: "smart-remote-control-589a1",
+
 storageBucket: "smart-remote-control-589a1.firebasestorage.app",
+
 messagingSenderId: "627989413574",
+
 appId: "1:627989413574:web:d93b68e22bcdb6f05061c7"
+
 };
 
 
 const app = initializeApp(firebaseConfig);
+
 const auth = getAuth(app);
+
 const db = getDatabase(app);
 
+
 let currentUser = null;
+
 let stopIncoming = null;
+
 let stopRequestStatus = null;
 
 const $ = id => document.getElementById(id);
@@ -237,11 +312,13 @@ $("email").value.trim(),
 $("password").value
 );
 
-$("loginStatus").innerText = "Login Successful";
+$("loginStatus").innerText =
+"Login Successful";
 
 } catch(error) {
 
-$("loginStatus").innerText = error.message;
+$("loginStatus").innerText =
+"Login Failed: " + error.message;
 
 }
 
@@ -260,11 +337,13 @@ $("email").value.trim(),
 $("password").value
 );
 
-$("loginStatus").innerText = "Account Created";
+$("loginStatus").innerText =
+"Account Created Successfully";
 
 } catch(error) {
 
-$("loginStatus").innerText = error.message;
+$("loginStatus").innerText =
+"Registration Failed: " + error.message;
 
 }
 
@@ -289,6 +368,7 @@ currentUser = user;
 if(user) {
 
 $("loginBox").style.display = "none";
+
 $("dashboard").style.display = "block";
 
 $("myUid").innerText = user.uid;
@@ -298,10 +378,24 @@ listenIncomingRequests();
 } else {
 
 $("loginBox").style.display = "block";
+
 $("dashboard").style.display = "none";
 
-if(stopIncoming) stopIncoming();
-if(stopRequestStatus) stopRequestStatus();
+if(stopIncoming) {
+
+stopIncoming();
+
+stopIncoming = null;
+
+}
+
+if(stopRequestStatus) {
+
+stopRequestStatus();
+
+stopRequestStatus = null;
+
+}
 
 }
 
@@ -314,20 +408,22 @@ $("copyUidBtn").onclick = async () => {
 
 try {
 
-await navigator.clipboard.writeText(currentUser.uid);
+await navigator.clipboard.writeText(
+currentUser.uid
+);
 
 alert("UID Copied Successfully");
 
 } catch(error) {
 
-alert("Please copy the UID manually.");
+alert("Please copy UID manually.");
 
 }
 
 };
 
 
-// SEND REQUEST - DUPLICATE CHECK
+// SEND CONNECTION REQUEST
 
 $("sendRequestBtn").onclick = async () => {
 
@@ -347,7 +443,7 @@ return;
 if(ownerUid === currentUser.uid) {
 
 $("requestStatus").innerText =
-"You cannot send a request to yourself";
+"You cannot send request to yourself";
 
 return;
 
@@ -360,58 +456,16 @@ db,
 "requests/" + ownerUid
 );
 
-const existing = await get(requestsRef);
-
-let alreadyPending = false;
-let alreadyApproved = false;
-
-if(existing.exists()) {
-
-existing.forEach(child => {
-
-const data = child.val();
-
-if(data.requesterUid === currentUser.uid) {
-
-if(data.status === "pending") {
-alreadyPending = true;
-}
-
-if(data.status === "approved") {
-alreadyApproved = true;
-}
-
-}
-
-});
-
-}
-
-if(alreadyApproved) {
-
-$("requestStatus").innerText =
-"Permission already approved.";
-
-return;
-
-}
-
-if(alreadyPending) {
-
-$("requestStatus").innerText =
-"Request already pending. Please wait for approval.";
-
-return;
-
-}
-
 const newRequest = push(requestsRef);
 
 await set(newRequest, {
 
 requesterUid: currentUser.uid,
+
 ownerUid: ownerUid,
+
 createdAt: Date.now(),
+
 status: "pending"
 
 });
@@ -419,7 +473,11 @@ status: "pending"
 $("requestStatus").innerText =
 "Connection Request Sent.";
 
-if(stopRequestStatus) stopRequestStatus();
+if(stopRequestStatus) {
+
+stopRequestStatus();
+
+}
 
 stopRequestStatus = onValue(
 newRequest,
@@ -427,11 +485,18 @@ snapshot => {
 
 if(snapshot.exists()) {
 
+const status = snapshot.val().status;
+
 $("requestStatus").innerText =
-"Request Status: " +
-snapshot.val().status.toUpperCase();
+"Request Status: " + status.toUpperCase();
 
 }
+
+},
+error => {
+
+$("requestStatus").innerText =
+"Status Error: " + error.message;
 
 }
 );
@@ -446,11 +511,15 @@ $("requestStatus").innerText =
 };
 
 
-// OWNER INCOMING REQUESTS
+// INCOMING REQUESTS
 
 function listenIncomingRequests() {
 
-if(stopIncoming) stopIncoming();
+if(stopIncoming) {
+
+stopIncoming();
+
+}
 
 const requestsRef = ref(
 db,
@@ -458,18 +527,23 @@ db,
 );
 
 stopIncoming = onValue(
+
 requestsRef,
+
 snapshot => {
 
 const box = $("incomingRequests");
+
 const approvedBox = $("approvedDevices");
 
 box.innerHTML = "";
+
 approvedBox.innerHTML = "";
 
 if(!snapshot.exists()) {
 
-box.innerText = "No Incoming Requests";
+box.innerText =
+"No Incoming Requests";
 
 approvedBox.innerText =
 "No approved permissions yet.";
@@ -481,26 +555,28 @@ return;
 }
 
 
-// GROUP REQUESTS BY UID
+// GROUP BY REQUESTER UID
 
 const grouped = new Map();
 
 snapshot.forEach(child => {
 
 const data = child.val();
-const requestId = child.key;
 
 if(!data.requesterUid) return;
 
-if(!grouped.has(data.requesterUid)) {
+const uid = data.requesterUid;
 
-grouped.set(data.requesterUid, []);
+if(!grouped.has(uid)) {
+
+grouped.set(uid, []);
 
 }
 
-grouped.get(data.requesterUid).push({
+grouped.get(uid).push({
 
-id: requestId,
+id: child.key,
+
 data: data
 
 });
@@ -511,38 +587,51 @@ data: data
 let approvedCount = 0;
 
 
-// DISPLAY UNIQUE APPROVED USERS
+// DISPLAY APPROVED DEVICES
 
 grouped.forEach((requests, uid) => {
 
-const approvedRequests = requests.filter(
+const approved = requests.some(
 item => item.data.status === "approved"
 );
 
-if(approvedRequests.length > 0) {
+const item = document.createElement("div");
+
+item.className = "permissionItem";
+
+const dot = document.createElement("span");
+
+dot.className = "dot " +
+(approved ? "dotGreen" : "dotRed");
+
+const title = document.createElement("p");
+
+title.textContent = approved
+? "APPROVED DEVICE"
+: "NO ACTIVE APPROVAL";
+
+const uidText = document.createElement("p");
+
+uidText.className = "small";
+
+uidText.textContent =
+"Device UID: " + uid;
+
+item.append(dot, title, uidText);
+
+if(approved) {
 
 approvedCount++;
 
-const item = document.createElement("div");
-item.className = "permissionItem";
-
-const uidText = document.createElement("p");
-uidText.className = "small";
-uidText.textContent = "Approved UID: " + uid;
-
-const state = document.createElement("p");
-state.className = "status";
-state.textContent = "Permission: APPROVED";
-
-item.append(uidText, state);
+}
 
 approvedBox.appendChild(item);
 
-}
-
 });
 
-$("approvedCount").innerText = approvedCount;
+
+$("approvedCount").innerText =
+approvedCount;
 
 if(approvedCount === 0) {
 
@@ -552,7 +641,7 @@ approvedBox.innerText =
 }
 
 
-// DISPLAY ONE CARD PER UID
+// DISPLAY INCOMING REQUESTS
 
 grouped.forEach((requests, uid) => {
 
@@ -569,52 +658,91 @@ item => item.data.status === "rejected"
 );
 
 const card = document.createElement("div");
+
 card.className = "permissionItem";
 
 const title = document.createElement("h4");
+
 title.textContent = "Connection Request";
 
 const requester = document.createElement("p");
+
 requester.className = "small";
-requester.textContent = "Requester UID: " + uid;
+
+requester.textContent =
+"Requester UID: " + uid;
 
 const status = document.createElement("p");
+
 status.className = "status";
+
+const dot = document.createElement("span");
+
+dot.className = "dot";
 
 if(approved) {
 
-status.textContent = "Status: APPROVED";
+dot.classList.add("dotGreen");
+
+status.append(dot);
+
+status.append(
+document.createTextNode("APPROVED")
+);
 
 } else if(pending) {
 
-status.textContent = "Status: PENDING";
+dot.classList.add("dotYellow");
+
+status.append(dot);
+
+status.append(
+document.createTextNode("PENDING")
+);
 
 } else if(rejected) {
 
-status.textContent = "Status: REJECTED";
+dot.classList.add("dotRed");
+
+status.append(dot);
+
+status.append(
+document.createTextNode("REJECTED")
+);
 
 } else {
 
-status.textContent = "Status: REVOKED";
+dot.classList.add("dotRed");
+
+status.append(dot);
+
+status.append(
+document.createTextNode("REVOKED")
+);
 
 }
 
 card.append(title, requester, status);
 
 
+// APPROVE AND REJECT
+
 if(!approved && pending) {
 
 const approve = document.createElement("button");
 
 approve.className = "green";
+
 approve.textContent = "Approve";
 
 approve.onclick = () =>
 changeGroupStatus(requests, "approved");
 
+
 const reject = document.createElement("button");
 
 reject.className = "red";
+
 reject.textContent = "Reject";
 
 reject.onclick = () =>
@@ -625,12 +753,16 @@ card.append(approve, reject);
 }
 
 
+// REVOKE
+
 if(approved) {
 
 const revoke = document.createElement("button");
 
 revoke.className = "red";
-revoke.textContent = "Revoke Permission";
+
+revoke.textContent =
+"Revoke Permission";
 
 revoke.onclick = () =>
 changeGroupStatus(requests, "revoked");
@@ -644,23 +776,29 @@ box.appendChild(card);
 });
 
 },
+
 error => {
 
 $("incomingRequests").innerText =
 "Database Error: " + error.message;
 
 }
+
 );
 
 }
 
 
-// CHANGE ALL DUPLICATE REQUESTS
+// CHANGE REQUEST STATUS
 
 async function changeGroupStatus(requests, status) {
 
-if(!confirm("Are you sure you want to " + status + "?")) {
+if(!confirm(
+"Are you sure you want to " + status + "?"
+)) {
+
 return;
+
 }
 
 try {
@@ -668,24 +806,37 @@ try {
 const changes = requests.map(item => {
 
 const requestRef = ref(
+
 db,
-"requests/" + currentUser.uid + "/" + item.id
+
+"requests/" +
+currentUser.uid +
+"/" +
+item.id
+
 );
 
 return update(requestRef, {
+
 status: status,
+
 updatedAt: Date.now()
+
 });
 
 });
 
 await Promise.all(changes);
 
-alert("Permission status updated: " + status);
+alert(
+"Permission status updated: " + status
+);
 
 } catch(error) {
 
-alert("Update Failed: " + error.message);
+alert(
+"Update Failed: " + error.message
+);
 
 }
 
