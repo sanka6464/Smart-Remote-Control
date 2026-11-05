@@ -40,6 +40,9 @@ button {
   background:#1689ff;
   color:white;
 }
+button:disabled {
+  opacity:0.5;
+}
 .reject {
   background:#dc3545;
 }
@@ -57,6 +60,9 @@ button {
   padding:12px;
   margin-top:12px;
   border-radius:10px;
+}
+.hidden {
+  display:none;
 }
 </style>
 </head>
@@ -79,15 +85,17 @@ button {
 <p id="authStatus" class="status">Please login or register</p>
 </div>
 
+<div id="dashboard" class="hidden">
+
 <div class="card">
 <h2>Connection Request</h2>
 
 <input id="ownerId" placeholder="Enter Device Owner UID">
 
 <button id="requestBtn">Send Connection Request</button>
-<button id="disconnectBtn">Disconnect</button>
+<button id="disconnectBtn" class="reject">Disconnect</button>
 
-<p id="status" class="status">Please login first</p>
+<p id="status" class="status">Ready</p>
 
 <p class="note">
 Connection requires device owner approval.
@@ -100,6 +108,8 @@ Connection requires device owner approval.
 <div id="requestList">
 <p class="status">Waiting for requests...</p>
 </div>
+</div>
+
 </div>
 
 </div>
@@ -149,8 +159,9 @@ let stopRequestListener = null;
 const status = document.getElementById("status");
 const authStatus = document.getElementById("authStatus");
 const requestList = document.getElementById("requestList");
+const dashboard = document.getElementById("dashboard");
 
-// USER REGISTRATION
+// REGISTER
 
 document.getElementById("registerBtn").onclick = async () => {
 
@@ -175,7 +186,7 @@ document.getElementById("registerBtn").onclick = async () => {
   }
 };
 
-// USER LOGIN
+// LOGIN
 
 document.getElementById("loginBtn").onclick = async () => {
 
@@ -189,7 +200,7 @@ document.getElementById("loginBtn").onclick = async () => {
 
   try {
     await signInWithEmailAndPassword(auth,email,password);
-    authStatus.innerText = "Login successful";
+    authStatus.innerText = "Login successful!";
   } catch(error) {
     authStatus.innerText = "Login failed: " + error.message;
   }
@@ -198,7 +209,12 @@ document.getElementById("loginBtn").onclick = async () => {
 // LOGOUT
 
 document.getElementById("logoutBtn").onclick = async () => {
-  await signOut(auth);
+
+  try {
+    await signOut(auth);
+  } catch(error) {
+    authStatus.innerText = "Logout failed: " + error.message;
+  }
 };
 
 // AUTH STATE
@@ -219,7 +235,10 @@ onAuthStateChanged(auth, (user) => {
 
   if (user) {
 
+    dashboard.classList.remove("hidden");
+
     authStatus.innerText = "Logged in: " + user.email;
+    status.innerText = "Login successful. Ready to connect.";
 
     const ownerRef = ref(database, "requests/" + user.uid);
 
@@ -253,11 +272,15 @@ onAuthStateChanged(auth, (user) => {
           accept.textContent = "Accept Request";
 
           accept.onclick = async () => {
+
             try {
               await update(
                 ref(database,"requests/" + user.uid + "/" + item.key),
                 {status:"approved"}
               );
+
+              alert("Request approved!");
+
             } catch(error) {
               alert("Approval failed: " + error.message);
             }
@@ -268,11 +291,15 @@ onAuthStateChanged(auth, (user) => {
           reject.className = "reject";
 
           reject.onclick = async () => {
+
             try {
               await update(
                 ref(database,"requests/" + user.uid + "/" + item.key),
                 {status:"rejected"}
               );
+
+              alert("Request rejected!");
+
             } catch(error) {
               alert("Rejection failed: " + error.message);
             }
@@ -282,13 +309,17 @@ onAuthStateChanged(auth, (user) => {
         }
 
         requestList.appendChild(box);
+
       });
 
     }, (error) => {
-      requestList.innerText = "Request loading failed: " + error.message;
+      requestList.innerText =
+      "Request loading failed: " + error.message;
     });
 
   } else {
+
+    dashboard.classList.add("hidden");
 
     authStatus.innerText = "Please login";
     status.innerText = "Please login first";
@@ -297,7 +328,7 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// SEND CONNECTION REQUEST
+// SEND REQUEST
 
 document.getElementById("requestBtn").onclick = async () => {
 
@@ -332,12 +363,15 @@ document.getElementById("requestBtn").onclick = async () => {
 
     status.innerText = "Request sent. Waiting for approval.";
 
-    if (stopRequestListener) stopRequestListener();
+    if (stopRequestListener) {
+      stopRequestListener();
+    }
 
     stopRequestListener = onValue(newRequest,(snapshot) => {
 
       if (snapshot.exists()) {
-        status.innerText = "Connection status: " + snapshot.val().status;
+        status.innerText =
+        "Connection status: " + snapshot.val().status;
       }
 
     }, (error) => {
@@ -359,6 +393,7 @@ document.getElementById("disconnectBtn").onclick = () => {
   }
 
   status.innerText = "Disconnected";
+
   document.getElementById("ownerId").value = "";
 
 };
