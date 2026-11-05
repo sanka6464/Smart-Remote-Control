@@ -134,7 +134,7 @@ Logout
 <h3>Approved Permissions Dashboard</h3>
 
 <p class="small">
-Number of approved permission requests:
+Number of approved users:
 </p>
 
 <p id="approvedCount" class="count">0</p>
@@ -180,8 +180,9 @@ Waiting for requests...
 
 <script type="module">
 
-import { initializeApp }
-from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
+import {
+initializeApp
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
 
 import {
 getAuth,
@@ -189,18 +190,17 @@ signInWithEmailAndPassword,
 createUserWithEmailAndPassword,
 onAuthStateChanged,
 signOut
-}
-from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
 
 import {
 getDatabase,
 ref,
 push,
 set,
+get,
 onValue,
 update
-}
-from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
 
 
 const firebaseConfig = {
@@ -327,9 +327,11 @@ alert("Please copy the UID manually.");
 };
 
 
-// SEND REQUEST
+// SEND REQUEST - DUPLICATE CHECK
 
 $("sendRequestBtn").onclick = async () => {
+
+if(!currentUser) return;
 
 const ownerUid = $("ownerUid").value.trim();
 
@@ -358,21 +360,64 @@ db,
 "requests/" + ownerUid
 );
 
+const existing = await get(requestsRef);
+
+let alreadyPending = false;
+let alreadyApproved = false;
+
+if(existing.exists()) {
+
+existing.forEach(child => {
+
+const data = child.val();
+
+if(data.requesterUid === currentUser.uid) {
+
+if(data.status === "pending") {
+alreadyPending = true;
+}
+
+if(data.status === "approved") {
+alreadyApproved = true;
+}
+
+}
+
+});
+
+}
+
+if(alreadyApproved) {
+
+$("requestStatus").innerText =
+"Permission already approved.";
+
+return;
+
+}
+
+if(alreadyPending) {
+
+$("requestStatus").innerText =
+"Request already pending. Please wait for approval.";
+
+return;
+
+}
+
 const newRequest = push(requestsRef);
 
-const requestData = {
+await set(newRequest, {
 
 requesterUid: currentUser.uid,
 ownerUid: ownerUid,
 createdAt: Date.now(),
 status: "pending"
 
-};
-
-await set(newRequest, requestData);
+});
 
 $("requestStatus").innerText =
-"Connection Request Sent. Waiting for Owner Approval.";
+"Connection Request Sent.";
 
 if(stopRequestStatus) stopRequestStatus();
 
@@ -382,18 +427,11 @@ snapshot => {
 
 if(snapshot.exists()) {
 
-const status = snapshot.val().status;
-
 $("requestStatus").innerText =
-"Request Status: " + status.toUpperCase();
+"Request Status: " +
+snapshot.val().status.toUpperCase();
 
 }
-
-},
-error => {
-
-$("requestStatus").innerText =
-"Status Error: " + error.message;
 
 }
 );
@@ -429,12 +467,12 @@ const approvedBox = $("approvedDevices");
 box.innerHTML = "";
 approvedBox.innerHTML = "";
 
-let approvedCount = 0;
-
 if(!snapshot.exists()) {
 
 box.innerText = "No Incoming Requests";
-approvedBox.innerText = "No approved permissions yet.";
+
+approvedBox.innerText =
+"No approved permissions yet.";
 
 $("approvedCount").innerText = "0";
 
@@ -442,92 +480,65 @@ return;
 
 }
 
+
+// GROUP REQUESTS BY UID
+
+const grouped = new Map();
+
 snapshot.forEach(child => {
 
-const requestId = child.key;
 const data = child.val();
+const requestId = child.key;
+
+if(!data.requesterUid) return;
+
+if(!grouped.has(data.requesterUid)) {
+
+grouped.set(data.requesterUid, []);
+
+}
+
+grouped.get(data.requesterUid).push({
+
+id: requestId,
+data: data
+
+});
+
+});
 
 
-// APPROVED PERMISSIONS DASHBOARD
+let approvedCount = 0;
 
-if(data.status === "approved") {
+
+// DISPLAY UNIQUE APPROVED USERS
+
+grouped.forEach((requests, uid) => {
+
+const approvedRequests = requests.filter(
+item => item.data.status === "approved"
+);
+
+if(approvedRequests.length > 0) {
 
 approvedCount++;
 
 const item = document.createElement("div");
 item.className = "permissionItem";
 
-const uid = document.createElement("p");
-uid.className = "small";
-uid.textContent = "Approved UID: " + data.requesterUid;
+const uidText = document.createElement("p");
+uidText.className = "small";
+uidText.textContent = "Approved UID: " + uid;
 
 const state = document.createElement("p");
 state.className = "status";
 state.textContent = "Permission: APPROVED";
 
-item.append(uid, state);
+item.append(uidText, state);
 
 approvedBox.appendChild(item);
 
 }
-
-
-// INCOMING REQUEST CARD
-
-const card = document.createElement("div");
-card.className = "card";
-
-const title = document.createElement("h4");
-title.textContent = "Connection Request";
-
-const requester = document.createElement("p");
-requester.className = "small";
-requester.textContent =
-"Requester UID: " + data.requesterUid;
-
-const status = document.createElement("p");
-status.className = "status";
-status.textContent =
-"Status: " + data.status;
-
-card.append(title, requester, status);
-
-
-if(data.status === "pending") {
-
-const approve = document.createElement("button");
-approve.className = "green";
-approve.textContent = "Approve";
-
-approve.onclick = () =>
-changeStatus(requestId, "approved");
-
-const reject = document.createElement("button");
-reject.className = "red";
-reject.textContent = "Reject";
-
-reject.onclick = () =>
-changeStatus(requestId, "rejected");
-
-card.append(approve, reject);
-
-}
-
-
-if(data.status === "approved") {
-
-const revoke = document.createElement("button");
-revoke.className = "red";
-revoke.textContent = "Revoke Permission";
-
-revoke.onclick = () =>
-changeStatus(requestId, "revoked");
-
-card.append(revoke);
-
-}
-
-box.appendChild(card);
 
 });
 
@@ -539,6 +550,98 @@ approvedBox.innerText =
 "No approved permissions yet.";
 
 }
+
+
+// DISPLAY ONE CARD PER UID
+
+grouped.forEach((requests, uid) => {
+
+const approved = requests.some(
+item => item.data.status === "approved"
+);
+
+const pending = requests.some(
+item => item.data.status === "pending"
+);
+
+const rejected = requests.some(
+item => item.data.status === "rejected"
+);
+
+const card = document.createElement("div");
+card.className = "permissionItem";
+
+const title = document.createElement("h4");
+title.textContent = "Connection Request";
+
+const requester = document.createElement("p");
+requester.className = "small";
+requester.textContent = "Requester UID: " + uid;
+
+const status = document.createElement("p");
+status.className = "status";
+
+if(approved) {
+
+status.textContent = "Status: APPROVED";
+
+} else if(pending) {
+
+status.textContent = "Status: PENDING";
+
+} else if(rejected) {
+
+status.textContent = "Status: REJECTED";
+
+} else {
+
+status.textContent = "Status: REVOKED";
+
+}
+
+card.append(title, requester, status);
+
+
+if(!approved && pending) {
+
+const approve = document.createElement("button");
+
+approve.className = "green";
+approve.textContent = "Approve";
+
+approve.onclick = () =>
+changeGroupStatus(requests, "approved");
+
+const reject = document.createElement("button");
+
+reject.className = "red";
+reject.textContent = "Reject";
+
+reject.onclick = () =>
+changeGroupStatus(requests, "rejected");
+
+card.append(approve, reject);
+
+}
+
+
+if(approved) {
+
+const revoke = document.createElement("button");
+
+revoke.className = "red";
+revoke.textContent = "Revoke Permission";
+
+revoke.onclick = () =>
+changeGroupStatus(requests, "revoked");
+
+card.append(revoke);
+
+}
+
+box.appendChild(card);
+
+});
 
 },
 error => {
@@ -552,20 +655,31 @@ $("incomingRequests").innerText =
 }
 
 
-// CHANGE REQUEST STATUS
+// CHANGE ALL DUPLICATE REQUESTS
 
-async function changeStatus(requestId, status) {
+async function changeGroupStatus(requests, status) {
+
+if(!confirm("Are you sure you want to " + status + "?")) {
+return;
+}
 
 try {
 
+const changes = requests.map(item => {
+
 const requestRef = ref(
 db,
-"requests/" + currentUser.uid + "/" + requestId
+"requests/" + currentUser.uid + "/" + item.id
 );
 
-await update(requestRef, {
-status: status
+return update(requestRef, {
+status: status,
+updatedAt: Date.now()
 });
+
+});
+
+await Promise.all(changes);
 
 alert("Permission status updated: " + status);
 
