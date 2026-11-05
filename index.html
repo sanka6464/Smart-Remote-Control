@@ -139,7 +139,6 @@ button:disabled {
   background:#475569;
   box-shadow:0 0 12px #475569;
 }
-
 </style>
 </head>
 
@@ -171,11 +170,9 @@ Create Account
 
 </div>
 
-
 <!-- DASHBOARD -->
 
 <div id="dashboard" style="display:none">
-
 
 <!-- ACCOUNT -->
 
@@ -200,7 +197,6 @@ Connecting...
 </p>
 
 </div>
-
 
 <!-- USERS -->
 
@@ -239,7 +235,6 @@ Connecting...
 
 </div>
 
-
 <!-- APPROVED DEVICES -->
 
 <div class="card">
@@ -252,17 +247,14 @@ Loading...
 
 </div>
 
-
 <!-- SEND REQUEST -->
 
 <div class="card">
 
 <h3>Send Connection Request</h3>
 
-<input
-id="ownerUid"
-placeholder="Enter Device Owner UID"
->
+<input id="ownerUid"
+placeholder="Enter Device Owner UID">
 
 <button id="sendRequestBtn">
 Send Connection Request
@@ -271,7 +263,6 @@ Send Connection Request
 <p id="requestStatus" class="status"></p>
 
 </div>
-
 
 <!-- INCOMING REQUESTS -->
 
@@ -285,7 +276,6 @@ Loading...
 
 </div>
 
-
 <!-- REMOTE CONTROLLER -->
 
 <div class="card">
@@ -296,10 +286,8 @@ Loading...
 Enter the UID of the device owner who has approved you.
 </p>
 
-<input
-id="targetUid"
-placeholder="Device Owner UID"
->
+<input id="targetUid"
+placeholder="Device Owner UID">
 
 <button id="remoteOnBtn" class="green">
 REMOTE ON
@@ -315,6 +303,27 @@ Waiting for command...
 
 </div>
 
+<!-- LIVE DEVICE STATUS -->
+
+<div class="card">
+
+<h3>Live Device Status</h3>
+
+<p class="small">
+Remote Device Connection:
+</p>
+
+<h3 id="targetDeviceStatus" class="status">
+Waiting for device...
+</h3>
+
+<p id="targetLastSeen" class="small"></p>
+
+<button id="checkDeviceBtn" class="green">
+CHECK DEVICE STATUS
+</button>
+
+</div>
 
 <!-- RECEIVER -->
 
@@ -338,10 +347,8 @@ Waiting for commands...
 
 </div>
 
-
 </div>
 </div>
-
 
 <script type="module">
 
@@ -367,7 +374,6 @@ onValue,
 update,
 onDisconnect
 } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
-
 
 // FIREBASE CONFIG
 
@@ -395,61 +401,44 @@ appId:
 
 };
 
-
 // INITIALIZE
 
 const app = initializeApp(firebaseConfig);
-
 const auth = getAuth(app);
-
 const db = getDatabase(app);
 
 let currentUser = null;
-
 let stopListeners = [];
+let stopTargetStatus = null;
 
 const $ = id => document.getElementById(id);
-
 
 // ERROR
 
 function showError(element,error) {
-
-element.innerText =
-error?.message || String(error);
-
+element.innerText = error?.message || String(error);
 }
-
 
 // LOGIN
 
 $("loginBtn").onclick = async () => {
 
 const email = $("email").value.trim();
-
 const password = $("password").value;
 
 if (!email || !password) {
-
-$("loginStatus").innerText =
-"Enter email and password.";
-
+$("loginStatus").innerText = "Enter email and password.";
 return;
-
 }
 
 $("loginBtn").disabled = true;
-
 $("loginStatus").innerText = "Logging in...";
 
 try {
 
-await signInWithEmailAndPassword(
-auth,email,password
-);
+await signInWithEmailAndPassword(auth,email,password);
 
-$("loginStatus").innerText =
-"Login Successful";
+$("loginStatus").innerText = "Login Successful";
 
 } catch(error) {
 
@@ -463,34 +452,25 @@ $("loginBtn").disabled = false;
 
 };
 
-
 // REGISTER
 
 $("registerBtn").onclick = async () => {
 
 const email = $("email").value.trim();
-
 const password = $("password").value;
 
 if (!email || !password) {
-
-$("loginStatus").innerText =
-"Enter email and password.";
-
+$("loginStatus").innerText = "Enter email and password.";
 return;
-
 }
 
 $("registerBtn").disabled = true;
 
 try {
 
-await createUserWithEmailAndPassword(
-auth,email,password
-);
+await createUserWithEmailAndPassword(auth,email,password);
 
-$("loginStatus").innerText =
-"Account Created Successfully";
+$("loginStatus").innerText = "Account Created Successfully";
 
 } catch(error) {
 
@@ -504,38 +484,35 @@ $("registerBtn").disabled = false;
 
 };
 
-
 // LOGOUT
 
 $("logoutBtn").onclick = async () => {
 
 try {
-
 await signOut(auth);
-
 } catch(error) {
-
 showError($("connectionStatus"),error);
-
 }
 
 };
-
 
 // AUTH STATE
 
 onAuthStateChanged(auth,async user => {
 
 stopListeners.forEach(stop => stop());
-
 stopListeners = [];
+
+if (stopTargetStatus) {
+stopTargetStatus();
+stopTargetStatus = null;
+}
 
 currentUser = user;
 
 if (!user) {
 
 $("loginBox").style.display = "block";
-
 $("dashboard").style.display = "none";
 
 return;
@@ -543,22 +520,18 @@ return;
 }
 
 $("loginBox").style.display = "none";
-
 $("dashboard").style.display = "block";
 
 $("myUid").innerText = user.uid;
 
-$("connectionStatus").innerText =
-"Connecting...";
+$("connectionStatus").innerText = "Connecting...";
 
 try {
 
 await startPresence(user);
 
 startUserDashboard();
-
 listenIncomingRequests();
-
 listenReceiverCommands();
 
 } catch(error) {
@@ -569,7 +542,6 @@ showError($("connectionStatus"),error);
 
 });
 
-
 // PRESENCE
 
 async function startPresence(user) {
@@ -577,9 +549,7 @@ async function startPresence(user) {
 const uid = user.uid;
 
 const userRef = ref(db,"users/"+uid);
-
 const presenceRef = ref(db,"presence/"+uid);
-
 const connectedRef = ref(db,".info/connected");
 
 const oldUser = await get(userRef);
@@ -616,7 +586,6 @@ try {
 await onDisconnect(presenceRef).set({
 
 state:"offline",
-
 lastChanged:Date.now()
 
 });
@@ -624,7 +593,6 @@ lastChanged:Date.now()
 await set(presenceRef,{
 
 state:"online",
-
 lastChanged:Date.now()
 
 });
@@ -640,18 +608,13 @@ showError($("connectionStatus"),error);
 
 },
 
-error => {
-
-showError($("connectionStatus"),error);
-
-}
+error => showError($("connectionStatus"),error)
 
 );
 
 stopListeners.push(stopConnection);
 
 }
-
 
 // USER DASHBOARD
 
@@ -673,7 +636,6 @@ snapshot.exists()
 );
 
 stopListeners.push(stopUsers);
-
 
 const stopPresence = onValue(
 
@@ -705,7 +667,6 @@ stopListeners.push(stopPresence);
 
 }
 
-
 // SEND REQUEST
 
 $("sendRequestBtn").onclick = async () => {
@@ -716,48 +677,35 @@ const ownerUid = $("ownerUid").value.trim();
 
 if (!ownerUid || ownerUid.length < 10) {
 
-$("requestStatus").innerText =
-"Invalid Owner UID";
-
+$("requestStatus").innerText = "Invalid Owner UID";
 return;
 
 }
 
 if (ownerUid === currentUser.uid) {
 
-$("requestStatus").innerText =
-"Cannot request yourself";
-
+$("requestStatus").innerText = "Cannot request yourself";
 return;
 
 }
 
 $("sendRequestBtn").disabled = true;
-
-$("requestStatus").innerText =
-"Sending request...";
+$("requestStatus").innerText = "Sending request...";
 
 try {
 
-const requestRef = push(
-ref(db,"requests/"+ownerUid)
-);
+const requestRef = push(ref(db,"requests/"+ownerUid));
 
 await set(requestRef,{
 
 requesterUid:currentUser.uid,
-
 ownerUid:ownerUid,
-
 createdAt:Date.now(),
-
 status:"pending"
 
 });
 
-$("requestStatus").innerText =
-"Connection Request Sent";
-
+$("requestStatus").innerText = "Connection Request Sent";
 $("ownerUid").value = "";
 
 } catch(error) {
@@ -772,15 +720,11 @@ $("sendRequestBtn").disabled = false;
 
 };
 
-
 // INCOMING REQUESTS
 
 function listenIncomingRequests() {
 
-const requestsRef = ref(
-db,
-"requests/"+currentUser.uid
-);
+const requestsRef = ref(db,"requests/"+currentUser.uid);
 
 const stop = onValue(
 
@@ -789,11 +733,9 @@ requestsRef,
 snapshot => {
 
 const box = $("incomingRequests");
-
 const approvedBox = $("approvedDevices");
 
 box.innerHTML = "";
-
 approvedBox.innerHTML = "";
 
 let grouped = new Map();
@@ -813,11 +755,8 @@ grouped.set(uid,[]);
 }
 
 grouped.get(uid).push({
-
 id:child.key,
-
 data:data
-
 });
 
 });
@@ -825,11 +764,8 @@ data:data
 }
 
 let approved = 0;
-
 let pending = 0;
-
 let revoked = 0;
-
 
 grouped.forEach((items,uid) => {
 
@@ -841,44 +777,32 @@ items.sort((a,b) =>
 );
 
 const latest = items[0];
-
 const status = latest.data.status;
 
 const item = document.createElement("div");
-
 item.className = "permissionItem";
 
 const dot = document.createElement("span");
-
 dot.className = "dot";
 
 const title = document.createElement("p");
-
 title.textContent = "Device UID: "+uid;
 
 const label = document.createElement("p");
-
 label.className = "small";
-
 
 if (status === "approved") {
 
 approved++;
-
 dot.classList.add("dotGreen");
-
 label.textContent = "APPROVED";
-
-// Sync old approvals into permissions
 
 syncPermission(uid,true);
 
 } else if (status === "pending") {
 
 pending++;
-
 dot.classList.add("dotYellow");
-
 label.textContent = "PENDING";
 
 } else {
@@ -890,52 +814,42 @@ dot.classList.add("dotRed");
 label.textContent =
 (status || "unknown").toUpperCase();
 
-if (status === "revoked" ||
-status === "rejected") {
-
+if (status === "revoked" || status === "rejected") {
 syncPermission(uid,false);
-
 }
 
 }
 
 item.append(dot,title,label);
 
-
 if (status === "approved") {
 
 const revoke = document.createElement("button");
 
 revoke.className = "red";
-
 revoke.textContent = "Revoke Permission";
 
 revoke.onclick = () =>
 changeStatus(latest.id,"revoked",uid);
 
 item.appendChild(revoke);
-
 approvedBox.appendChild(item);
 
 }
-
 
 if (status === "pending") {
 
 const approve = document.createElement("button");
 
 approve.className = "green";
-
 approve.textContent = "Approve";
 
 approve.onclick = () =>
 changeStatus(latest.id,"approved",uid);
 
-
 const reject = document.createElement("button");
 
 reject.className = "red";
-
 reject.textContent = "Reject";
 
 reject.onclick = () =>
@@ -949,26 +863,16 @@ box.appendChild(item);
 
 });
 
-
 $("approvedCount").innerText = approved;
-
 $("pendingCount").innerText = pending;
-
 $("revokedCount").innerText = revoked;
 
-
 if (approved === 0) {
-
-approvedBox.innerText =
-"No approved devices.";
-
+approvedBox.innerText = "No approved devices.";
 }
 
 if (grouped.size === 0) {
-
-box.innerText =
-"No incoming requests.";
-
+box.innerText = "No incoming requests.";
 }
 
 }
@@ -979,7 +883,6 @@ stopListeners.push(stop);
 
 }
 
-
 // SYNC PERMISSION
 
 async function syncPermission(requesterUid,allowed) {
@@ -987,19 +890,14 @@ async function syncPermission(requesterUid,allowed) {
 try {
 
 const permissionRef = ref(
-
 db,
-
 "permissions/"+currentUser.uid+"/"+requesterUid
-
 );
 
 const current = await get(permissionRef);
 
 if (current.val() !== allowed) {
-
 await set(permissionRef,allowed);
-
 }
 
 } catch(error) {
@@ -1010,42 +908,30 @@ console.error("Permission sync:",error);
 
 }
 
-
 // CHANGE PERMISSION
 
 async function changeStatus(id,status,requesterUid) {
 
 if (!currentUser) return;
 
-if (!confirm("Change permission to "+status+"?")) {
-return;
-}
+if (!confirm("Change permission to "+status+"?")) return;
 
 try {
 
 await update(
 
-ref(
-db,
-"requests/"+currentUser.uid+"/"+id
-),
+ref(db,"requests/"+currentUser.uid+"/"+id),
 
 {
-
 status:status,
-
 updatedAt:Date.now()
-
 }
 
 );
 
 await set(
 
-ref(
-db,
-"permissions/"+currentUser.uid+"/"+requesterUid
-),
+ref(db,"permissions/"+currentUser.uid+"/"+requesterUid),
 
 status === "approved"
 
@@ -1061,7 +947,6 @@ alert("Update Failed: "+error.message);
 
 }
 
-
 // REMOTE COMMAND
 
 async function sendRemoteCommand(state) {
@@ -1072,45 +957,34 @@ const ownerUid = $("targetUid").value.trim();
 
 if (!ownerUid || ownerUid.length < 10) {
 
-$("remoteStatus").innerText =
-"Enter a valid Device Owner UID.";
-
+$("remoteStatus").innerText = "Enter a valid Device Owner UID.";
 return;
 
 }
 
 if (ownerUid === currentUser.uid) {
 
-$("remoteStatus").innerText =
-"Use Receiver on your own device.";
-
+$("remoteStatus").innerText = "Use Receiver on your own device.";
 return;
 
 }
 
 $("remoteOnBtn").disabled = true;
-
 $("remoteOffBtn").disabled = true;
 
-$("remoteStatus").innerText =
-"Checking permission...";
+$("remoteStatus").innerText = "Checking permission...";
 
 try {
 
 const permissionSnapshot = await get(
 
-ref(
-db,
-"permissions/"+ownerUid+"/"+currentUser.uid
-)
+ref(db,"permissions/"+ownerUid+"/"+currentUser.uid)
 
 );
 
 if (permissionSnapshot.val() !== true) {
 
-throw new Error(
-"Permission not approved by device owner."
-);
+throw new Error("Permission not approved by device owner.");
 
 }
 
@@ -1119,19 +993,14 @@ await set(
 ref(db,"commands/"+ownerUid),
 
 {
-
 state:state,
-
 updatedAt:Date.now(),
-
 updatedBy:currentUser.uid
-
 }
 
 );
 
-$("remoteStatus").innerText =
-"Command sent: "+state;
+$("remoteStatus").innerText = "Command sent: "+state;
 
 } catch(error) {
 
@@ -1140,32 +1009,140 @@ showError($("remoteStatus"),error);
 } finally {
 
 $("remoteOnBtn").disabled = false;
-
 $("remoteOffBtn").disabled = false;
 
 }
 
 }
 
+$("remoteOnBtn").onclick = () => sendRemoteCommand("ON");
+$("remoteOffBtn").onclick = () => sendRemoteCommand("OFF");
 
-$("remoteOnBtn").onclick = () =>
-sendRemoteCommand("ON");
+// LIVE DEVICE STATUS
 
-$("remoteOffBtn").onclick = () =>
-sendRemoteCommand("OFF");
+$("checkDeviceBtn").onclick = async () => {
 
+if (!currentUser) return;
+
+const ownerUid = $("targetUid").value.trim();
+
+if (!ownerUid || ownerUid.length < 10) {
+
+$("targetDeviceStatus").innerText = "Enter a valid Device UID.";
+$("targetLastSeen").innerText = "";
+return;
+
+}
+
+if (ownerUid === currentUser.uid) {
+
+$("targetDeviceStatus").innerText = "This is your own device.";
+return;
+
+}
+
+$("checkDeviceBtn").disabled = true;
+
+$("targetDeviceStatus").innerText = "Checking permission...";
+$("targetLastSeen").innerText = "";
+
+if (stopTargetStatus) {
+stopTargetStatus();
+stopTargetStatus = null;
+}
+
+try {
+
+const permissionSnapshot = await get(
+
+ref(db,"permissions/"+ownerUid+"/"+currentUser.uid)
+
+);
+
+if (permissionSnapshot.val() !== true) {
+
+throw new Error("Device owner has not approved your account.");
+
+}
+
+$("targetDeviceStatus").innerText = "Connecting to device...";
+
+const presenceRef = ref(db,"presence/"+ownerUid);
+
+stopTargetStatus = onValue(
+
+presenceRef,
+
+snapshot => {
+
+if (!snapshot.exists()) {
+
+$("targetDeviceStatus").innerHTML =
+'<span class="dot dotRed"></span>OFFLINE';
+
+$("targetLastSeen").innerText =
+"No presence information available.";
+
+return;
+
+}
+
+const presence = snapshot.val();
+
+if (presence.state === "online") {
+
+$("targetDeviceStatus").innerHTML =
+'<span class="dot dotGreen"></span>ONLINE';
+
+$("targetLastSeen").innerText =
+"Last changed: "+new Date(presence.lastChanged).toLocaleString();
+
+} else {
+
+$("targetDeviceStatus").innerHTML =
+'<span class="dot dotRed"></span>OFFLINE';
+
+$("targetLastSeen").innerText =
+"Last changed: "+new Date(presence.lastChanged).toLocaleString();
+
+}
+
+},
+
+error => {
+
+showError($("targetDeviceStatus"),error);
+
+}
+
+);
+
+stopListeners.push(() => {
+
+if (stopTargetStatus) {
+stopTargetStatus();
+stopTargetStatus = null;
+}
+
+});
+
+} catch(error) {
+
+showError($("targetDeviceStatus"),error);
+
+} finally {
+
+$("checkDeviceBtn").disabled = false;
+
+}
+
+};
 
 // RECEIVER COMMAND LISTENER
 
 function listenReceiverCommands() {
 
-const commandsRef = ref(
-
-db,
-
-"commands/"+currentUser.uid
-
-);
+const commandsRef = ref(db,"commands/"+currentUser.uid);
 
 const stop = onValue(
 
@@ -1175,9 +1152,7 @@ snapshot => {
 
 if (!snapshot.exists()) {
 
-$("receiverStatus").innerText =
-"Waiting for commands...";
-
+$("receiverStatus").innerText = "Waiting for commands...";
 return;
 
 }
@@ -1186,25 +1161,17 @@ const command = snapshot.val();
 
 if (command.state === "ON") {
 
-$("receiverLed").className =
-"led ledOn";
-
-$("receiverState").innerText =
-"LED ON";
+$("receiverLed").className = "led ledOn";
+$("receiverState").innerText = "LED ON";
 
 } else if (command.state === "OFF") {
 
-$("receiverLed").className =
-"led ledOff";
-
-$("receiverState").innerText =
-"LED OFF";
+$("receiverLed").className = "led ledOff";
+$("receiverState").innerText = "LED OFF";
 
 } else {
 
-$("receiverStatus").innerText =
-"Unknown command";
-
+$("receiverStatus").innerText = "Unknown command";
 return;
 
 }
@@ -1214,18 +1181,13 @@ $("receiverStatus").innerText =
 
 },
 
-error => {
-
-showError($("receiverStatus"),error);
-
-}
+error => showError($("receiverStatus"),error)
 
 );
 
 stopListeners.push(stop);
 
 }
-
 
 // COPY UID
 
@@ -1235,18 +1197,13 @@ if (!currentUser) return;
 
 try {
 
-await navigator.clipboard.writeText(
-currentUser.uid
-);
+await navigator.clipboard.writeText(currentUser.uid);
 
 alert("UID Copied Successfully");
 
 } catch(error) {
 
-alert(
-"Please copy UID manually: "+
-currentUser.uid
-);
+alert("Please copy UID manually: "+currentUser.uid);
 
 }
 
