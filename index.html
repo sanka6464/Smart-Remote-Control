@@ -10,104 +10,133 @@ body {
   background:#101827;
   color:white;
   font-family:Arial,sans-serif;
-  padding:20px;
+  padding:15px;
 }
+
 .container {
-  max-width:450px;
+  max-width:500px;
   margin:auto;
 }
-h1 {
-  color:#35b8ff;
-  text-align:center;
-}
+
 .card {
   background:#1e293b;
   padding:20px;
-  border-radius:15px;
-  margin-top:20px;
+  margin:15px 0;
+  border-radius:12px;
 }
-input,button {
-  box-sizing:border-box;
+
+h2 {
+  color:#35b8ff;
+  text-align:center;
+}
+
+input {
   width:100%;
-  padding:14px;
-  margin-top:12px;
-  border-radius:9px;
-  font-size:16px;
-}
-input { border:0; }
-button {
+  padding:12px;
+  margin:8px 0;
+  box-sizing:border-box;
+  border-radius:7px;
   border:0;
+}
+
+button {
+  padding:12px;
+  margin:5px 0;
+  width:100%;
+  border:0;
+  border-radius:7px;
   background:#1689ff;
   color:white;
+  font-weight:bold;
 }
-button:disabled {
-  opacity:0.5;
-}
-.reject {
-  background:#dc3545;
-}
+
+.green { background:#159957; }
+.red { background:#dc3545; }
+.gray { background:#64748b; }
+
 .status {
-  color:#facc15;
+  color:#35b8ff;
   text-align:center;
   overflow-wrap:anywhere;
 }
-.note {
-  color:#94a3b8;
+
+.small {
   font-size:13px;
-}
-.request {
-  background:#334155;
-  padding:12px;
-  margin-top:12px;
-  border-radius:10px;
-}
-.hidden {
-  display:none;
+  color:#cbd5e1;
+  overflow-wrap:anywhere;
 }
 </style>
 </head>
 
 <body>
+
 <div class="container">
 
-<h1>Smart Remote Control</h1>
+<h2>Smart Remote Control</h2>
 
-<div class="card">
-<h2>User Account</h2>
+<div class="card" id="loginBox">
 
-<input id="email" type="email" placeholder="Enter Email">
-<input id="password" type="password" placeholder="Enter Password">
+<h3>User Login</h3>
 
-<button id="registerBtn">Create New Account</button>
+<input id="email" type="email"
+placeholder="Email Address">
+
+<input id="password" type="password"
+placeholder="Password">
+
 <button id="loginBtn">Login</button>
-<button id="logoutBtn">Logout</button>
 
-<p id="authStatus" class="status">Please login or register</p>
+<button id="registerBtn" class="green">
+Create Account
+</button>
+
+<p id="loginStatus" class="status"></p>
+
 </div>
 
-<div id="dashboard" class="hidden">
+<div id="dashboard" style="display:none">
 
 <div class="card">
-<h2>Connection Request</h2>
 
-<input id="ownerId" placeholder="Enter Device Owner UID">
+<h3>My Device Account</h3>
 
-<button id="requestBtn">Send Connection Request</button>
-<button id="disconnectBtn" class="reject">Disconnect</button>
+<p class="small">Your UID:</p>
 
-<p id="status" class="status">Ready</p>
+<p id="myUid" class="status"></p>
 
-<p class="note">
-Connection requires device owner approval.
-</p>
+<button id="copyUidBtn" class="gray">
+Copy My UID
+</button>
+
+<button id="logoutBtn" class="red">
+Logout
+</button>
+
 </div>
 
 <div class="card">
-<h2>Device Owner Panel</h2>
 
-<div id="requestList">
-<p class="status">Waiting for requests...</p>
+<h3>Send Connection Request</h3>
+
+<input id="ownerUid"
+placeholder="Enter Device Owner UID">
+
+<button id="sendRequestBtn">
+Send Connection Request
+</button>
+
+<p id="requestStatus" class="status"></p>
+
 </div>
+
+<div class="card">
+
+<h3>Incoming Requests</h3>
+
+<div id="incomingRequests">
+Waiting for requests...
+</div>
+
 </div>
 
 </div>
@@ -120,6 +149,15 @@ import { initializeApp }
 from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
 
 import {
+getAuth,
+signInWithEmailAndPassword,
+createUserWithEmailAndPassword,
+onAuthStateChanged,
+signOut
+}
+from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+
+import {
 getDatabase,
 ref,
 push,
@@ -129,14 +167,6 @@ update
 }
 from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
 
-import {
-getAuth,
-signInWithEmailAndPassword,
-createUserWithEmailAndPassword,
-signOut,
-onAuthStateChanged
-}
-from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
 
 const firebaseConfig = {
 apiKey: "AIzaSyC3cV-srYW3K6hzWPEQID_GNwMlntIcpnE",
@@ -148,256 +178,331 @@ messagingSenderId: "627989413574",
 appId: "1:627989413574:web:d93b68e22bcdb6f05061c7"
 };
 
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const database = getDatabase(app);
+const db = getDatabase(app);
 
 let currentUser = null;
-let stopOwnerListener = null;
-let stopRequestListener = null;
+let stopIncoming = null;
+let stopRequestStatus = null;
 
-const status = document.getElementById("status");
-const authStatus = document.getElementById("authStatus");
-const requestList = document.getElementById("requestList");
-const dashboard = document.getElementById("dashboard");
 
-// REGISTER
+const $ = id => document.getElementById(id);
 
-document.getElementById("registerBtn").onclick = async () => {
-
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value;
-
-  if (!email || !password) {
-    alert("Enter email and password");
-    return;
-  }
-
-  if (password.length < 6) {
-    alert("Password must contain at least 6 characters");
-    return;
-  }
-
-  try {
-    await createUserWithEmailAndPassword(auth,email,password);
-    authStatus.innerText = "Registration successful!";
-  } catch(error) {
-    authStatus.innerText = "Registration failed: " + error.message;
-  }
-};
 
 // LOGIN
 
-document.getElementById("loginBtn").onclick = async () => {
+$("loginBtn").onclick = async () => {
 
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value;
+try {
 
-  if (!email || !password) {
-    alert("Enter email and password");
-    return;
-  }
+await signInWithEmailAndPassword(
+auth,
+$("email").value.trim(),
+$("password").value
+);
 
-  try {
-    await signInWithEmailAndPassword(auth,email,password);
-    authStatus.innerText = "Login successful!";
-  } catch(error) {
-    authStatus.innerText = "Login failed: " + error.message;
-  }
+$("loginStatus").innerText = "Login Successful";
+
+} catch(error) {
+
+$("loginStatus").innerText = error.message;
+
+}
+
 };
+
+
+// REGISTER
+
+$("registerBtn").onclick = async () => {
+
+try {
+
+await createUserWithEmailAndPassword(
+auth,
+$("email").value.trim(),
+$("password").value
+);
+
+$("loginStatus").innerText = "Account Created";
+
+} catch(error) {
+
+$("loginStatus").innerText = error.message;
+
+}
+
+};
+
 
 // LOGOUT
 
-document.getElementById("logoutBtn").onclick = async () => {
+$("logoutBtn").onclick = async () => {
 
-  try {
-    await signOut(auth);
-  } catch(error) {
-    authStatus.innerText = "Logout failed: " + error.message;
-  }
+await signOut(auth);
+
 };
 
-// AUTH STATE
 
-onAuthStateChanged(auth, (user) => {
+// AUTH CHECK
 
-  currentUser = user;
+onAuthStateChanged(auth, user => {
 
-  if (stopOwnerListener) {
-    stopOwnerListener();
-    stopOwnerListener = null;
-  }
+currentUser = user;
 
-  if (stopRequestListener) {
-    stopRequestListener();
-    stopRequestListener = null;
-  }
+if(user) {
 
-  if (user) {
+$("loginBox").style.display = "none";
+$("dashboard").style.display = "block";
 
-    dashboard.classList.remove("hidden");
+$("myUid").innerText = user.uid;
 
-    authStatus.innerText = "Logged in: " + user.email;
-    status.innerText = "Login successful. Ready to connect.";
+listenIncomingRequests();
 
-    const ownerRef = ref(database, "requests/" + user.uid);
+} else {
 
-    stopOwnerListener = onValue(ownerRef, (snapshot) => {
+$("loginBox").style.display = "block";
+$("dashboard").style.display = "none";
 
-      requestList.replaceChildren();
+if(stopIncoming) stopIncoming();
+if(stopRequestStatus) stopRequestStatus();
 
-      if (!snapshot.exists()) {
-        requestList.innerText = "No connection requests yet.";
-        return;
-      }
+}
 
-      snapshot.forEach((item) => {
-
-        const data = item.val();
-
-        const box = document.createElement("div");
-        box.className = "request";
-
-        const info = document.createElement("p");
-        info.textContent = "Requester UID: " + data.requesterUid;
-
-        const state = document.createElement("p");
-        state.textContent = "Status: " + data.status;
-
-        box.append(info,state);
-
-        if (data.status === "pending") {
-
-          const accept = document.createElement("button");
-          accept.textContent = "Accept Request";
-
-          accept.onclick = async () => {
-
-            try {
-              await update(
-                ref(database,"requests/" + user.uid + "/" + item.key),
-                {status:"approved"}
-              );
-
-              alert("Request approved!");
-
-            } catch(error) {
-              alert("Approval failed: " + error.message);
-            }
-          };
-
-          const reject = document.createElement("button");
-          reject.textContent = "Reject Request";
-          reject.className = "reject";
-
-          reject.onclick = async () => {
-
-            try {
-              await update(
-                ref(database,"requests/" + user.uid + "/" + item.key),
-                {status:"rejected"}
-              );
-
-              alert("Request rejected!");
-
-            } catch(error) {
-              alert("Rejection failed: " + error.message);
-            }
-          };
-
-          box.append(accept,reject);
-        }
-
-        requestList.appendChild(box);
-
-      });
-
-    }, (error) => {
-      requestList.innerText =
-      "Request loading failed: " + error.message;
-    });
-
-  } else {
-
-    dashboard.classList.add("hidden");
-
-    authStatus.innerText = "Please login";
-    status.innerText = "Please login first";
-    requestList.innerText = "Please login to view requests.";
-
-  }
 });
+
+
+// COPY UID
+
+$("copyUidBtn").onclick = async () => {
+
+try {
+
+await navigator.clipboard.writeText(currentUser.uid);
+
+alert("UID Copied Successfully");
+
+} catch(error) {
+
+alert("Please copy the UID manually.");
+
+}
+
+};
+
 
 // SEND REQUEST
 
-document.getElementById("requestBtn").onclick = async () => {
+$("sendRequestBtn").onclick = async () => {
 
-  if (!currentUser) {
-    alert("Please login first");
-    return;
-  }
+const ownerUid = $("ownerUid").value.trim();
 
-  const ownerUid = document.getElementById("ownerId").value.trim();
+if(!ownerUid || ownerUid.length < 10) {
 
-  if (!ownerUid) {
-    alert("Please enter Owner ID");
-    return;
-  }
+$("requestStatus").innerText =
+"Please enter a valid Owner UID";
 
-  if (ownerUid.length > 128 || ownerUid === currentUser.uid) {
-    alert("Invalid Owner ID");
-    return;
-  }
+return;
 
-  try {
+}
 
-    const requestsRef = ref(database,"requests/" + ownerUid);
-    const newRequest = push(requestsRef);
+if(ownerUid === currentUser.uid) {
 
-    await set(newRequest,{
-      requesterUid: currentUser.uid,
-      ownerUid: ownerUid,
-      createdAt: Date.now(),
-      status: "pending"
-    });
+$("requestStatus").innerText =
+"You cannot send a request to yourself";
 
-    status.innerText = "Request sent. Waiting for approval.";
+return;
 
-    if (stopRequestListener) {
-      stopRequestListener();
-    }
+}
 
-    stopRequestListener = onValue(newRequest,(snapshot) => {
+try {
 
-      if (snapshot.exists()) {
-        status.innerText =
-        "Connection status: " + snapshot.val().status;
-      }
+const requestsRef = ref(
+db,
+"requests/" + ownerUid
+);
 
-    }, (error) => {
-      status.innerText = "Status error: " + error.message;
-    });
+const newRequest = push(requestsRef);
 
-  } catch(error) {
-    status.innerText = "Request failed: " + error.message;
-  }
-};
+const requestData = {
 
-// DISCONNECT
+requesterUid: currentUser.uid,
 
-document.getElementById("disconnectBtn").onclick = () => {
+ownerUid: ownerUid,
 
-  if (stopRequestListener) {
-    stopRequestListener();
-    stopRequestListener = null;
-  }
+createdAt: Date.now(),
 
-  status.innerText = "Disconnected";
-
-  document.getElementById("ownerId").value = "";
+status: "pending"
 
 };
+
+await set(newRequest, requestData);
+
+$("requestStatus").innerText =
+"Connection Request Sent. Waiting for Owner Approval.";
+
+if(stopRequestStatus) stopRequestStatus();
+
+stopRequestStatus = onValue(
+newRequest,
+snapshot => {
+
+if(snapshot.exists()) {
+
+const status = snapshot.val().status;
+
+$("requestStatus").innerText =
+"Request Status: " + status.toUpperCase();
+
+}
+
+},
+error => {
+
+$("requestStatus").innerText =
+"Status Error: " + error.message;
+
+}
+);
+
+} catch(error) {
+
+$("requestStatus").innerText =
+"Request Failed: " + error.message;
+
+}
+
+};
+
+
+// OWNER INCOMING REQUESTS
+
+function listenIncomingRequests() {
+
+if(stopIncoming) stopIncoming();
+
+const requestsRef = ref(
+db,
+"requests/" + currentUser.uid
+);
+
+stopIncoming = onValue(
+requestsRef,
+snapshot => {
+
+const box = $("incomingRequests");
+
+box.innerHTML = "";
+
+if(!snapshot.exists()) {
+
+box.innerText = "No Incoming Requests";
+
+return;
+
+}
+
+snapshot.forEach(child => {
+
+const requestId = child.key;
+const data = child.val();
+
+const card = document.createElement("div");
+
+card.className = "card";
+
+const title = document.createElement("h4");
+title.textContent = "Connection Request";
+
+const requester = document.createElement("p");
+requester.className = "small";
+requester.textContent =
+"Requester UID: " + data.requesterUid;
+
+const status = document.createElement("p");
+status.className = "status";
+status.textContent =
+"Status: " + data.status;
+
+card.append(title, requester, status);
+
+if(data.status === "pending") {
+
+const approve = document.createElement("button");
+approve.className = "green";
+approve.textContent = "Approve";
+
+approve.onclick = () =>
+changeStatus(requestId, "approved");
+
+const reject = document.createElement("button");
+reject.className = "red";
+reject.textContent = "Reject";
+
+reject.onclick = () =>
+changeStatus(requestId, "rejected");
+
+card.append(approve, reject);
+
+}
+
+if(data.status === "approved") {
+
+const revoke = document.createElement("button");
+revoke.className = "red";
+revoke.textContent = "Revoke Connection";
+
+revoke.onclick = () =>
+changeStatus(requestId, "revoked");
+
+card.append(revoke);
+
+}
+
+box.appendChild(card);
+
+});
+
+},
+error => {
+
+$("incomingRequests").innerText =
+"Database Error: " + error.message;
+
+}
+);
+
+}
+
+
+// CHANGE REQUEST STATUS
+
+async function changeStatus(requestId, status) {
+
+try {
+
+const requestRef = ref(
+db,
+"requests/" + currentUser.uid + "/" + requestId
+);
+
+await update(requestRef, {
+status: status
+});
+
+alert("Request status updated: " + status);
+
+} catch(error) {
+
+alert("Update Failed: " + error.message);
+
+}
+
+}
 
 </script>
+
 </body>
 </html>
