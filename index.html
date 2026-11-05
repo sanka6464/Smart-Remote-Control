@@ -12,20 +12,24 @@ body {
   font-family:Arial,sans-serif;
   padding:15px;
 }
+
 .container {
   max-width:500px;
   margin:auto;
 }
+
 .card {
   background:#1e293b;
   padding:20px;
   margin:15px 0;
   border-radius:12px;
 }
+
 h2 {
   color:#35b8ff;
   text-align:center;
 }
+
 input {
   width:100%;
   padding:12px;
@@ -34,6 +38,7 @@ input {
   border-radius:7px;
   border:0;
 }
+
 button {
   padding:12px;
   margin:5px 0;
@@ -44,9 +49,11 @@ button {
   color:white;
   font-weight:bold;
 }
+
 button:disabled {
   opacity:0.5;
 }
+
 .green {background:#159957;}
 .red {background:#dc3545;}
 .gray {background:#64748b;}
@@ -56,28 +63,33 @@ button:disabled {
   text-align:center;
   overflow-wrap:anywhere;
 }
+
 .small {
   font-size:13px;
   color:#cbd5e1;
   overflow-wrap:anywhere;
 }
+
 .grid {
   display:grid;
   grid-template-columns:1fr 1fr;
   gap:10px;
 }
+
 .stat {
   background:#334155;
   padding:15px;
   border-radius:10px;
   text-align:center;
 }
+
 .count {
   font-size:30px;
   color:#35b8ff;
   font-weight:bold;
   margin:8px;
 }
+
 .permissionItem {
   background:#334155;
   padding:12px;
@@ -85,6 +97,7 @@ button:disabled {
   border-radius:8px;
   overflow-wrap:anywhere;
 }
+
 .dot {
   display:inline-block;
   width:11px;
@@ -92,18 +105,41 @@ button:disabled {
   border-radius:50%;
   margin-right:8px;
 }
+
 .dotGreen {
   background:#22c55e;
   box-shadow:0 0 8px #22c55e;
 }
+
 .dotYellow {
   background:#facc15;
   box-shadow:0 0 8px #facc15;
 }
+
 .dotRed {
   background:#ef4444;
   box-shadow:0 0 8px #ef4444;
 }
+
+.led {
+  width:85px;
+  height:85px;
+  border-radius:50%;
+  margin:20px auto;
+  background:#475569;
+  box-shadow:0 0 12px #475569;
+}
+
+.ledOn {
+  background:#22c55e;
+  box-shadow:0 0 30px #22c55e;
+}
+
+.ledOff {
+  background:#475569;
+  box-shadow:0 0 12px #475569;
+}
+
 </style>
 </head>
 
@@ -139,6 +175,9 @@ Create Account
 <!-- DASHBOARD -->
 
 <div id="dashboard" style="display:none">
+
+
+<!-- ACCOUNT -->
 
 <div class="card">
 
@@ -194,11 +233,8 @@ Connecting...
 </div>
 
 <div class="stat" style="margin-top:10px">
-
 <p>Revoked Permissions</p>
-
 <div class="count" id="revokedCount">0</div>
-
 </div>
 
 </div>
@@ -248,6 +284,60 @@ Loading...
 </div>
 
 </div>
+
+
+<!-- REMOTE CONTROLLER -->
+
+<div class="card">
+
+<h3>Remote Controller</h3>
+
+<p class="small">
+Enter the UID of the device owner who has approved you.
+</p>
+
+<input
+id="targetUid"
+placeholder="Device Owner UID"
+>
+
+<button id="remoteOnBtn" class="green">
+REMOTE ON
+</button>
+
+<button id="remoteOffBtn" class="red">
+REMOTE OFF
+</button>
+
+<p id="remoteStatus" class="status">
+Waiting for command...
+</p>
+
+</div>
+
+
+<!-- RECEIVER -->
+
+<div class="card">
+
+<h3>Receiver Device</h3>
+
+<p class="small">
+This phone receives commands sent to your account.
+</p>
+
+<div id="receiverLed" class="led ledOff"></div>
+
+<h3 id="receiverState" class="status">
+LED OFF
+</h3>
+
+<p id="receiverStatus" class="status">
+Waiting for commands...
+</p>
+
+</div>
+
 
 </div>
 </div>
@@ -314,7 +404,6 @@ const auth = getAuth(app);
 
 const db = getDatabase(app);
 
-
 let currentUser = null;
 
 let stopListeners = [];
@@ -322,9 +411,9 @@ let stopListeners = [];
 const $ = id => document.getElementById(id);
 
 
-// ERROR MESSAGE
+// ERROR
 
-function showError(element, error) {
+function showError(element,error) {
 
 element.innerText =
 error?.message || String(error);
@@ -356,9 +445,7 @@ $("loginStatus").innerText = "Logging in...";
 try {
 
 await signInWithEmailAndPassword(
-auth,
-email,
-password
+auth,email,password
 );
 
 $("loginStatus").innerText =
@@ -366,7 +453,7 @@ $("loginStatus").innerText =
 
 } catch(error) {
 
-showError($("loginStatus"), error);
+showError($("loginStatus"),error);
 
 } finally {
 
@@ -399,9 +486,7 @@ $("registerBtn").disabled = true;
 try {
 
 await createUserWithEmailAndPassword(
-auth,
-email,
-password
+auth,email,password
 );
 
 $("loginStatus").innerText =
@@ -409,7 +494,7 @@ $("loginStatus").innerText =
 
 } catch(error) {
 
-showError($("loginStatus"), error);
+showError($("loginStatus"),error);
 
 } finally {
 
@@ -430,7 +515,7 @@ await signOut(auth);
 
 } catch(error) {
 
-showError($("connectionStatus"), error);
+showError($("connectionStatus"),error);
 
 }
 
@@ -439,7 +524,7 @@ showError($("connectionStatus"), error);
 
 // AUTH STATE
 
-onAuthStateChanged(auth, async user => {
+onAuthStateChanged(auth,async user => {
 
 stopListeners.forEach(stop => stop());
 
@@ -474,38 +559,40 @@ startUserDashboard();
 
 listenIncomingRequests();
 
+listenReceiverCommands();
+
 } catch(error) {
 
-showError($("connectionStatus"), error);
+showError($("connectionStatus"),error);
 
 }
 
 });
 
 
-// PRESENCE SYSTEM
+// PRESENCE
 
 async function startPresence(user) {
 
 const uid = user.uid;
 
-const userRef = ref(db, "users/" + uid);
+const userRef = ref(db,"users/"+uid);
 
-const presenceRef = ref(db, "presence/" + uid);
+const presenceRef = ref(db,"presence/"+uid);
 
-const connectedRef = ref(db, ".info/connected");
+const connectedRef = ref(db,".info/connected");
 
 const oldUser = await get(userRef);
 
-await update(userRef, {
+await update(userRef,{
 
-uid: uid,
+uid:uid,
 
-createdAt: oldUser.exists()
+createdAt:oldUser.exists()
 ? oldUser.val().createdAt
 : Date.now(),
 
-lastSeen: Date.now()
+lastSeen:Date.now()
 
 });
 
@@ -528,17 +615,17 @@ try {
 
 await onDisconnect(presenceRef).set({
 
-state: "offline",
+state:"offline",
 
-lastChanged: Date.now()
+lastChanged:Date.now()
 
 });
 
-await set(presenceRef, {
+await set(presenceRef,{
 
-state: "online",
+state:"online",
 
-lastChanged: Date.now()
+lastChanged:Date.now()
 
 });
 
@@ -547,7 +634,7 @@ $("connectionStatus").innerHTML =
 
 } catch(error) {
 
-showError($("connectionStatus"), error);
+showError($("connectionStatus"),error);
 
 }
 
@@ -555,7 +642,7 @@ showError($("connectionStatus"), error);
 
 error => {
 
-showError($("connectionStatus"), error);
+showError($("connectionStatus"),error);
 
 }
 
@@ -566,29 +653,20 @@ stopListeners.push(stopConnection);
 }
 
 
-// USERS DASHBOARD
+// USER DASHBOARD
 
 function startUserDashboard() {
 
-const usersRef = ref(db, "users");
-
 const stopUsers = onValue(
 
-usersRef,
+ref(db,"users"),
 
 snapshot => {
 
-const total = snapshot.exists()
+$("totalUsers").innerText =
+snapshot.exists()
 ? Object.keys(snapshot.val()).length
 : 0;
-
-$("totalUsers").innerText = total;
-
-},
-
-error => {
-
-$("totalUsers").innerText = "Error";
 
 }
 
@@ -597,11 +675,9 @@ $("totalUsers").innerText = "Error";
 stopListeners.push(stopUsers);
 
 
-const presenceRef = ref(db, "presence");
-
 const stopPresence = onValue(
 
-presenceRef,
+ref(db,"presence"),
 
 snapshot => {
 
@@ -612,9 +688,7 @@ if (snapshot.exists()) {
 snapshot.forEach(child => {
 
 if (child.val().state === "online") {
-
 online++;
-
 }
 
 });
@@ -622,12 +696,6 @@ online++;
 }
 
 $("onlineUsers").innerText = online;
-
-},
-
-error => {
-
-$("onlineUsers").innerText = "Error";
 
 }
 
@@ -672,20 +740,18 @@ $("requestStatus").innerText =
 try {
 
 const requestRef = push(
-
-ref(db, "requests/" + ownerUid)
-
+ref(db,"requests/"+ownerUid)
 );
 
-await set(requestRef, {
+await set(requestRef,{
 
-requesterUid: currentUser.uid,
+requesterUid:currentUser.uid,
 
-ownerUid: ownerUid,
+ownerUid:ownerUid,
 
-createdAt: Date.now(),
+createdAt:Date.now(),
 
-status: "pending"
+status:"pending"
 
 });
 
@@ -696,7 +762,7 @@ $("ownerUid").value = "";
 
 } catch(error) {
 
-showError($("requestStatus"), error);
+showError($("requestStatus"),error);
 
 } finally {
 
@@ -712,11 +778,8 @@ $("sendRequestBtn").disabled = false;
 function listenIncomingRequests() {
 
 const requestsRef = ref(
-
 db,
-
-"requests/" + currentUser.uid
-
+"requests/"+currentUser.uid
 );
 
 const stop = onValue(
@@ -746,16 +809,14 @@ if (!data.requesterUid) return;
 const uid = data.requesterUid;
 
 if (!grouped.has(uid)) {
-
-grouped.set(uid, []);
-
+grouped.set(uid,[]);
 }
 
 grouped.get(uid).push({
 
-id: child.key,
+id:child.key,
 
-data: data
+data:data
 
 });
 
@@ -770,12 +831,11 @@ let pending = 0;
 let revoked = 0;
 
 
-grouped.forEach((items, uid) => {
+grouped.forEach((items,uid) => {
 
 items.sort((a,b) =>
 
 (b.data.updatedAt || b.data.createdAt || 0) -
-
 (a.data.updatedAt || a.data.createdAt || 0)
 
 );
@@ -794,7 +854,7 @@ dot.className = "dot";
 
 const title = document.createElement("p");
 
-title.textContent = "Device UID: " + uid;
+title.textContent = "Device UID: "+uid;
 
 const label = document.createElement("p");
 
@@ -809,6 +869,10 @@ dot.classList.add("dotGreen");
 
 label.textContent = "APPROVED";
 
+// Sync old approvals into permissions
+
+syncPermission(uid,true);
+
 } else if (status === "pending") {
 
 pending++;
@@ -819,20 +883,23 @@ label.textContent = "PENDING";
 
 } else {
 
-if (status === "revoked") {
-
-revoked++;
-
-}
+if (status === "revoked") revoked++;
 
 dot.classList.add("dotRed");
 
 label.textContent =
 (status || "unknown").toUpperCase();
 
+if (status === "revoked" ||
+status === "rejected") {
+
+syncPermission(uid,false);
+
 }
 
-item.append(dot, title, label);
+}
+
+item.append(dot,title,label);
 
 
 if (status === "approved") {
@@ -844,8 +911,7 @@ revoke.className = "red";
 revoke.textContent = "Revoke Permission";
 
 revoke.onclick = () =>
-
-changeStatus(latest.id, "revoked");
+changeStatus(latest.id,"revoked",uid);
 
 item.appendChild(revoke);
 
@@ -863,8 +929,7 @@ approve.className = "green";
 approve.textContent = "Approve";
 
 approve.onclick = () =>
-
-changeStatus(latest.id, "approved");
+changeStatus(latest.id,"approved",uid);
 
 
 const reject = document.createElement("button");
@@ -874,10 +939,9 @@ reject.className = "red";
 reject.textContent = "Reject";
 
 reject.onclick = () =>
+changeStatus(latest.id,"rejected",uid);
 
-changeStatus(latest.id, "rejected");
-
-item.append(approve, reject);
+item.append(approve,reject);
 
 }
 
@@ -907,12 +971,6 @@ box.innerText =
 
 }
 
-},
-
-error => {
-
-showError($("incomingRequests"), error);
-
 }
 
 );
@@ -922,16 +980,45 @@ stopListeners.push(stop);
 }
 
 
+// SYNC PERMISSION
+
+async function syncPermission(requesterUid,allowed) {
+
+try {
+
+const permissionRef = ref(
+
+db,
+
+"permissions/"+currentUser.uid+"/"+requesterUid
+
+);
+
+const current = await get(permissionRef);
+
+if (current.val() !== allowed) {
+
+await set(permissionRef,allowed);
+
+}
+
+} catch(error) {
+
+console.error("Permission sync:",error);
+
+}
+
+}
+
+
 // CHANGE PERMISSION
 
-async function changeStatus(id, status) {
+async function changeStatus(id,status,requesterUid) {
 
 if (!currentUser) return;
 
-if (!confirm("Change permission to " + status + "?")) {
-
+if (!confirm("Change permission to "+status+"?")) {
 return;
-
 }
 
 try {
@@ -939,20 +1026,28 @@ try {
 await update(
 
 ref(
-
 db,
-
-"requests/" + currentUser.uid + "/" + id
-
+"requests/"+currentUser.uid+"/"+id
 ),
 
 {
 
-status: status,
+status:status,
 
-updatedAt: Date.now()
+updatedAt:Date.now()
 
 }
+
+);
+
+await set(
+
+ref(
+db,
+"permissions/"+currentUser.uid+"/"+requesterUid
+),
+
+status === "approved"
 
 );
 
@@ -960,9 +1055,174 @@ alert("Permission updated successfully");
 
 } catch(error) {
 
-alert("Update Failed: " + error.message);
+alert("Update Failed: "+error.message);
 
 }
+
+}
+
+
+// REMOTE COMMAND
+
+async function sendRemoteCommand(state) {
+
+if (!currentUser) return;
+
+const ownerUid = $("targetUid").value.trim();
+
+if (!ownerUid || ownerUid.length < 10) {
+
+$("remoteStatus").innerText =
+"Enter a valid Device Owner UID.";
+
+return;
+
+}
+
+if (ownerUid === currentUser.uid) {
+
+$("remoteStatus").innerText =
+"Use Receiver on your own device.";
+
+return;
+
+}
+
+$("remoteOnBtn").disabled = true;
+
+$("remoteOffBtn").disabled = true;
+
+$("remoteStatus").innerText =
+"Checking permission...";
+
+try {
+
+const permissionSnapshot = await get(
+
+ref(
+db,
+"permissions/"+ownerUid+"/"+currentUser.uid
+)
+
+);
+
+if (permissionSnapshot.val() !== true) {
+
+throw new Error(
+"Permission not approved by device owner."
+);
+
+}
+
+await set(
+
+ref(db,"commands/"+ownerUid),
+
+{
+
+state:state,
+
+updatedAt:Date.now(),
+
+updatedBy:currentUser.uid
+
+}
+
+);
+
+$("remoteStatus").innerText =
+"Command sent: "+state;
+
+} catch(error) {
+
+showError($("remoteStatus"),error);
+
+} finally {
+
+$("remoteOnBtn").disabled = false;
+
+$("remoteOffBtn").disabled = false;
+
+}
+
+}
+
+
+$("remoteOnBtn").onclick = () =>
+sendRemoteCommand("ON");
+
+$("remoteOffBtn").onclick = () =>
+sendRemoteCommand("OFF");
+
+
+// RECEIVER COMMAND LISTENER
+
+function listenReceiverCommands() {
+
+const commandsRef = ref(
+
+db,
+
+"commands/"+currentUser.uid
+
+);
+
+const stop = onValue(
+
+commandsRef,
+
+snapshot => {
+
+if (!snapshot.exists()) {
+
+$("receiverStatus").innerText =
+"Waiting for commands...";
+
+return;
+
+}
+
+const command = snapshot.val();
+
+if (command.state === "ON") {
+
+$("receiverLed").className =
+"led ledOn";
+
+$("receiverState").innerText =
+"LED ON";
+
+} else if (command.state === "OFF") {
+
+$("receiverLed").className =
+"led ledOff";
+
+$("receiverState").innerText =
+"LED OFF";
+
+} else {
+
+$("receiverStatus").innerText =
+"Unknown command";
+
+return;
+
+}
+
+$("receiverStatus").innerText =
+"Last command received successfully.";
+
+},
+
+error => {
+
+showError($("receiverStatus"),error);
+
+}
+
+);
+
+stopListeners.push(stop);
 
 }
 
@@ -976,9 +1236,7 @@ if (!currentUser) return;
 try {
 
 await navigator.clipboard.writeText(
-
 currentUser.uid
-
 );
 
 alert("UID Copied Successfully");
@@ -986,11 +1244,8 @@ alert("UID Copied Successfully");
 } catch(error) {
 
 alert(
-
-"Please copy UID manually: " +
-
+"Please copy UID manually: "+
 currentUser.uid
-
 );
 
 }
