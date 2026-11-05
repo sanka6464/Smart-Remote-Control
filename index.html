@@ -302,6 +302,72 @@ listenIncomingRequests();
 
 async function startPresence(user) {
 
+  const uid = user.uid;
+
+  const userRef = ref(db, "users/" + uid);
+  const presenceRef = ref(db, "presence/" + uid);
+  const connectedRef = ref(db, ".info/connected");
+
+  try {
+
+    const oldUser = await get(userRef);
+
+    await set(userRef, {
+      uid: uid,
+      createdAt: oldUser.exists()
+        ? oldUser.val().createdAt
+        : Date.now(),
+      lastSeen: Date.now()
+    });
+
+    const stopConnection = onValue(
+      connectedRef,
+      async snapshot => {
+
+        if (snapshot.val() !== true) {
+
+          $("connectionStatus").innerHTML =
+            '<span class="dot dotRed"></span>Offline';
+
+          return;
+        }
+
+        try {
+
+          await onDisconnect(presenceRef).set({
+            state: "offline",
+            lastChanged: Date.now()
+          });
+
+          await set(presenceRef, {
+            state: "online",
+            lastChanged: Date.now()
+          });
+
+          $("connectionStatus").innerHTML =
+            '<span class="dot dotGreen"></span>Connected';
+
+        } catch(error) {
+
+          $("connectionStatus").innerText =
+            "Presence Error: " + error.message;
+
+        }
+
+      }
+    );
+
+    stopListeners.push(stopConnection);
+
+  } catch(error) {
+
+    $("connectionStatus").innerText =
+      "Connection Error: " + error.message;
+
+  }
+
+}
+
 const uid = user.uid;
 
 const userRef = ref(db, "users/" + uid);
