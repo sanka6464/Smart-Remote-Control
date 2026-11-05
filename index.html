@@ -65,6 +65,21 @@ button {
   color:#cbd5e1;
   overflow-wrap:anywhere;
 }
+
+.count {
+  font-size:28px;
+  color:#35b8ff;
+  text-align:center;
+  font-weight:bold;
+}
+
+.permissionItem {
+  background:#334155;
+  padding:12px;
+  margin:10px 0;
+  border-radius:8px;
+  overflow-wrap:anywhere;
+}
 </style>
 </head>
 
@@ -111,6 +126,26 @@ Copy My UID
 <button id="logoutBtn" class="red">
 Logout
 </button>
+
+</div>
+
+<div class="card">
+
+<h3>Approved Permissions Dashboard</h3>
+
+<p class="small">
+Number of approved permission requests:
+</p>
+
+<p id="approvedCount" class="count">0</p>
+
+<div id="approvedDevices">
+No approved permissions yet.
+</div>
+
+<p class="small">
+This dashboard displays permission status only.
+</p>
 
 </div>
 
@@ -186,7 +221,6 @@ const db = getDatabase(app);
 let currentUser = null;
 let stopIncoming = null;
 let stopRequestStatus = null;
-
 
 const $ = id => document.getElementById(id);
 
@@ -329,11 +363,8 @@ const newRequest = push(requestsRef);
 const requestData = {
 
 requesterUid: currentUser.uid,
-
 ownerUid: ownerUid,
-
 createdAt: Date.now(),
-
 status: "pending"
 
 };
@@ -393,12 +424,19 @@ requestsRef,
 snapshot => {
 
 const box = $("incomingRequests");
+const approvedBox = $("approvedDevices");
 
 box.innerHTML = "";
+approvedBox.innerHTML = "";
+
+let approvedCount = 0;
 
 if(!snapshot.exists()) {
 
 box.innerText = "No Incoming Requests";
+approvedBox.innerText = "No approved permissions yet.";
+
+$("approvedCount").innerText = "0";
 
 return;
 
@@ -409,8 +447,34 @@ snapshot.forEach(child => {
 const requestId = child.key;
 const data = child.val();
 
-const card = document.createElement("div");
 
+// APPROVED PERMISSIONS DASHBOARD
+
+if(data.status === "approved") {
+
+approvedCount++;
+
+const item = document.createElement("div");
+item.className = "permissionItem";
+
+const uid = document.createElement("p");
+uid.className = "small";
+uid.textContent = "Approved UID: " + data.requesterUid;
+
+const state = document.createElement("p");
+state.className = "status";
+state.textContent = "Permission: APPROVED";
+
+item.append(uid, state);
+
+approvedBox.appendChild(item);
+
+}
+
+
+// INCOMING REQUEST CARD
+
+const card = document.createElement("div");
 card.className = "card";
 
 const title = document.createElement("h4");
@@ -427,6 +491,7 @@ status.textContent =
 "Status: " + data.status;
 
 card.append(title, requester, status);
+
 
 if(data.status === "pending") {
 
@@ -448,11 +513,12 @@ card.append(approve, reject);
 
 }
 
+
 if(data.status === "approved") {
 
 const revoke = document.createElement("button");
 revoke.className = "red";
-revoke.textContent = "Revoke Connection";
+revoke.textContent = "Revoke Permission";
 
 revoke.onclick = () =>
 changeStatus(requestId, "revoked");
@@ -464,6 +530,15 @@ card.append(revoke);
 box.appendChild(card);
 
 });
+
+$("approvedCount").innerText = approvedCount;
+
+if(approvedCount === 0) {
+
+approvedBox.innerText =
+"No approved permissions yet.";
+
+}
 
 },
 error => {
@@ -492,7 +567,7 @@ await update(requestRef, {
 status: status
 });
 
-alert("Request status updated: " + status);
+alert("Permission status updated: " + status);
 
 } catch(error) {
 
